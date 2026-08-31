@@ -22,38 +22,33 @@ class MainActivity : Activity() {
     private lateinit var btnScan: Button
     private lateinit var tvResults: TextView
     
-    // Твой старый автоматический список
+    // Автоматический список по умолчанию
     private val defaultTargetNames = listOf("libil2cpp.so", "Yandere.zip", "R4x", "Viento", "Spoof_lios")
     private val foundPaths = StringBuilder()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Создаем контейнер для элементов интерфейса
         val layout = LinearLayout(this)
         layout.orientation = LinearLayout.VERTICAL
         layout.setPadding(32, 32, 32, 32)
 
-        // 1. Добавляем поисковую строку
         etSearchInput = EditText(this)
-        etSearchInput.hint = "Введите название файла или расширение..."
+        etSearchInput.hint = "Название файла, расширение или имя приложения..."
         layout.addView(etSearchInput)
 
-        // 2. Наша главная кнопка сканирования
         btnScan = Button(this)
-        btnScan.text = "Запустить поиск"
+        btnScan.text = "Глубокий поиск везде"
         layout.addView(btnScan)
 
-        // 3. Область вывода результатов с прокруткой
         val scrollView = ScrollView(this)
         tvResults = TextView(this)
-        tvResults.textSize = 16f
+        tvResults.textSize = 14f
         scrollView.addView(tvResults)
         layout.addView(scrollView)
 
         setContentView(layout)
 
-        // Обработка нажатия на кнопку
         btnScan.setOnClickListener {
             if (hasAllFilesPermission()) {
                 runSearch()
@@ -80,28 +75,31 @@ class MainActivity : Activity() {
 
     private fun runSearch() {
         foundPaths.setLength(0)
-        
-        // Читаем, что ввёл пользователь в строку поиска
         val query = etSearchInput.text.toString().trim()
-        
-        // Определяем список для поиска: если пусто — берём старый список, если написано — ищем это слово
         val currentTargets = if (query.isEmpty()) defaultTargetNames else listOf(query)
 
-        tvResults.text = "Сканирование запущено..."
+        tvResults.text = "Запущено тотальное сканирование памяти и кэша приложений..."
         btnScan.isEnabled = false
 
         thread {
+            // 1. Сканируем стандартную память устройства
             val rootDir = Environment.getExternalStorageDirectory()
             searchFiles(rootDir, currentTargets)
+
+            // 2. Целенаправленно идем в скрытый кэш всех приложений (Android/data)
+            val androidDataDir = File(rootDir, "Android/data")
+            if (androidDataDir.exists() && androidDataDir.isDirectory) {
+                searchFiles(androidDataDir, currentTargets)
+            }
 
             runOnUiThread {
                 btnScan.isEnabled = true
                 if (foundPaths.isEmpty()) {
-                    tvResults.text = "Ничего не найдено."
+                    tvResults.text = "Скрытые файлы с такими именами не найдены."
                 } else {
                     tvResults.text = foundPaths.toString()
                 }
-                Toast.makeText(this, "Сканирование завершено", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Глубокий поиск завершен", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -109,12 +107,18 @@ class MainActivity : Activity() {
     private fun searchFiles(dir: File, targets: List<String>) {
         val files = dir.listFiles() ?: return
         for (file in files) {
+            // Проверяем совпадение имени файла с целями поиска
             val match = targets.firstOrNull { target ->
                 file.name.contains(target, ignoreCase = true)
             }
             if (match != null) {
-                foundPaths.append("Найдено совпадение [${match}]:\n${file.absolutePath}\n\n")
+                // Если файл найден внутри папки Android/data, помечаем, какому приложению он принадлежит
+                val parentName = dir.parentFile?.name ?: ""
+                val prefix = if (dir.absolutePath.contains("Android/data")) "[Кэш приложения: $parentName]" else "[Пямять]"
+                foundPaths.append("$prefix Найдено совпадение ($match):\n${file.absolutePath}\n\n")
             }
+            
+            // Рекурсивно идем глубже, если это папка (пропускаем скрытые точки типа .thumbnails)
             if (file.isDirectory && !file.name.startsWith(".")) {
                 searchFiles(file, targets)
             }
