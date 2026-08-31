@@ -1,22 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest>
-
     <application
-        android:allowBackup="true"
-        android:label="File Sercher"
-        android:supportsRtl="true">
-        
+        allowBackup="true"
+        label="File Sercher"
+        supportsRtl="true">
         <activity
-            android:name=".MainActivity"
-            android:exported="true">
+            name=".MainActivity"
+            exported="true">
             <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
+                <action name="android.intent.action.MAIN" />
+                <category name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
     </application>
-
 </manifest>
+
 
 
 
