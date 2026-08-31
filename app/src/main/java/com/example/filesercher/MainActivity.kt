@@ -88,12 +88,9 @@ class MainActivity : Activity() {
         }
         mainLayout.addView(btnScan)
 
-        // Исправленный круглый ProgressBar без привязки к XML-стилям
         progressBar = ProgressBar(this).apply {
             visibility = View.GONE
         }
-        
-        // Размещаем крутилку по центру
         val progressParams = LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.WRAP_CONTENT,
             LinearLayout.LayoutParams.WRAP_CONTENT
@@ -178,6 +175,17 @@ class MainActivity : Activity() {
         }
     }
 
+    private fun checkFileContent(file: File, query: String): Boolean {
+        if (file.length() >= 5 * 1024 * 1024) return false
+        val ext = file.extension.lowercase(Locale.getDefault())
+        if (!textExtensions.contains(ext)) return false
+        return try {
+            file.readText(Charsets.UTF_8).contains(query, ignoreCase = true)
+        } catch (e: Exception) {
+            false
+        }
+    }
+
     private fun searchFiles(dir: File, targets: List<String>, originalQuery: String) {
         val files = dir.listFiles() ?: return
         
@@ -197,15 +205,10 @@ class MainActivity : Activity() {
             if (matchByName != null) {
                 isMatched = true
                 matchReason = "Имя: $matchByName"
-            } else if (originalQuery.isNotEmpty() && file.isFile && textExtensions.contains(file.extension.lowercase(Locale.getDefault()))) {
-                if (file.length() < 5 * 1024 * 1024) {
-                    try {
-                        val content = file.readText(Charsets.UTF_8)
-                        if (content.contains(originalQuery, ignoreCase = true)) {
-                            isMatched = true
-                            matchReason = "Текст внутри"
-                        }
-                    } catch (e: Exception) {}
+            } else if (originalQuery.isNotEmpty() && file.isFile) {
+                if (checkFileContent(file, originalQuery)) {
+                    isMatched = true
+                    matchReason = "Текст внутри"
                 }
             }
 
@@ -259,4 +262,5 @@ class MainActivity : Activity() {
             val uri = DocumentsContract.buildDocumentUri(authority, documentId)
 
             val intent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(uri, "vnd.android.document/directory")
                 
