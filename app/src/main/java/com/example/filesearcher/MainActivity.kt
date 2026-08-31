@@ -9,7 +9,6 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        // Создаем кнопку прямо в коде без использования XML-файлов разметки
         val searchButton = Button(this)
         searchButton.text = "Запустить поиск"
         searchButton.setOnClickListener {
