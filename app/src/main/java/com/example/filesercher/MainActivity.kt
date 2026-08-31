@@ -33,8 +33,6 @@ class MainActivity : Activity() {
     private lateinit var progressBar: ProgressBar
     
     private val defaultTargetNames = listOf("libil2cpp.so", "Yandere.zip", "R4x", "Viento", "Spoof_lios")
-    private val textExtensions = listOf("txt", "log", "cfg", "json", "xml", "ini", "yaml", "yml", "conf")
-    
     private var checkedDirsCount = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -62,7 +60,7 @@ class MainActivity : Activity() {
             setStroke(2, Color.parseColor("#33333C"))
         }
         etSearchInput = EditText(this).apply {
-            hint = "Введите имя файла или текст внутри..."
+            hint = "Введите имя файла для поиска..."
             setHintTextColor(Color.parseColor("#666666"))
             setTextColor(Color.WHITE)
             textSize = 15f
@@ -91,18 +89,10 @@ class MainActivity : Activity() {
         progressBar = ProgressBar(this).apply {
             visibility = View.GONE
         }
-        val progressParams = LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.WRAP_CONTENT,
-            LinearLayout.LayoutParams.WRAP_CONTENT
-        ).apply {
-            gravity = Gravity.CENTER
-            setMargins(0, 20, 0, 10)
-        }
-        progressBar.layoutParams = progressParams
         mainLayout.addView(progressBar)
 
         tvStatus = TextView(this).apply {
-            text = "Приложение готово к работе"
+            text = "Приложение ready к работе"
             textSize = 13f
             setTextColor(Color.parseColor("#8E8E93"))
             setPadding(0, 20, 0, 20)
@@ -110,9 +100,7 @@ class MainActivity : Activity() {
         }
         mainLayout.addView(tvStatus)
 
-        val scrollView = ScrollView(this).apply {
-            isVerticalScrollBarEnabled = false
-        }
+        val scrollView = ScrollView(this)
         llResultsContainer = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
         }
@@ -148,79 +136,47 @@ class MainActivity : Activity() {
         val currentTargets = if (query.isEmpty()) defaultTargetNames else listOf(query)
 
         btnScan.isEnabled = false
-        btnScan.alpha = 0.5f
         progressBar.visibility = View.VISIBLE
 
         thread {
             val rootDir = Environment.getExternalStorageDirectory()
-            searchFiles(rootDir, currentTargets, query)
+            searchFiles(rootDir, currentTargets)
 
             val androidDataDir = File(rootDir, "Android/data")
             if (androidDataDir.exists() && androidDataDir.isDirectory) {
-                searchFiles(androidDataDir, currentTargets, query)
+                searchFiles(androidDataDir, currentTargets)
             }
 
             runOnUiThread {
                 btnScan.isEnabled = true
-                btnScan.alpha = 1.0f
                 progressBar.visibility = View.GONE
-                
-                if (llResultsContainer.childCount == 0) {
-                    tvStatus.text = "Ничего не найдено. Проверено папок: $checkedDirsCount"
-                } else {
-                    tvStatus.text = "Успешно! Найдено совпадений: ${llResultsContainer.childCount}\nПроверено папок в системе: $checkedDirsCount"
-                }
-                Toast.makeText(this, "Поиск успешно завершён!", Toast.LENGTH_SHORT).show()
+                tvStatus.text = "Успешно! Найдено совпадений: ${llResultsContainer.childCount}"
+                Toast.makeText(this@MainActivity, "Поиск успешно завершён!", Toast.LENGTH_SHORT).show()
             }
         }
     }
 
-    private fun checkFileContent(file: File, query: String): Boolean {
-        if (file.length() >= 5 * 1024 * 1024) return false
-        val ext = file.extension.lowercase(Locale.getDefault())
-        if (!textExtensions.contains(ext)) return false
-        return try {
-            file.readText(Charsets.UTF_8).contains(query, ignoreCase = true)
-        } catch (e: Exception) {
-            false
-        }
-    }
-
-    private fun searchFiles(dir: File, targets: List<String>, originalQuery: String) {
+    private fun searchFiles(dir: File, targets: List<String>) {
         val files = dir.listFiles() ?: return
-        
         checkedDirsCount++
-        if (checkedDirsCount % 50 == 0) {
+        
+        if (checkedDirsCount % 100 == 0) {
             runOnUiThread {
-                tvStatus.text = "⚡ Идёт сканирование... Проверено папок: $checkedDirsCount"
+                tvStatus.text = "⚡ Идёт сканирование папок... [$checkedDirsCount]"
             }
         }
 
         for (file in files) {
-            var isMatched = false
-            var matchReason = ""
-
             val matchByName = targets.firstOrNull { target -> file.name.contains(target, ignoreCase = true) }
 
             if (matchByName != null) {
-                isMatched = true
-                matchReason = "Имя: $matchByName"
-            } else if (originalQuery.isNotEmpty() && file.isFile) {
-                if (checkFileContent(file, originalQuery)) {
-                    isMatched = true
-                    matchReason = "Текст внутри"
-                }
-            }
-
-            if (isMatched) {
                 val parentName = dir.parentFile?.name ?: ""
                 val prefix = if (dir.absolutePath.contains("Android/data")) "[Кэш: $parentName]" else "[Память]"
-                val fileType = file.extension.uppercase(Locale.getDefault()).ifEmpty { "БЕЗ РАСШИРЕНИЯ" }
-                val fileSize = formatFileSize(file.length())
+                val fileType = file.extension.uppercase(Locale.getDefault()).ifEmpty { "FILE" }
 
                 runOnUiThread {
                     val tvFileItem = TextView(this@MainActivity).apply {
-                        text = "$prefix Найдено ($matchReason)\n📄 Тип: .$fileType | ⚖️ Вес: $fileSize\n📍 Путь: ${file.absolutePath}\n"
+                        text = "$prefix Найдено ($matchByName)\n📄 Тип: .$fileType |📍 Путь: ${file.absolutePath}\n"
                         textSize = 13f
                         setTextColor(Color.parseColor("#00FF66"))
                         setPadding(25, 25, 25, 25)
@@ -245,7 +201,7 @@ class MainActivity : Activity() {
             }
             
             if (file.isDirectory && !file.name.startsWith(".")) {
-                searchFiles(file, targets, originalQuery)
+                searchFiles(file, targets)
             }
         }
     }
@@ -263,4 +219,21 @@ class MainActivity : Activity() {
 
             val intent = Intent(Intent.ACTION_VIEW).apply {
                 setDataAndType(uri, "vnd.android.document/directory")
-                
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            startActivity(intent)
+        } catch (e: Exception) {
+            try {
+                val fallbackUri = Uri.parse("content://com.android.externalstorage.documents/document/primary:" + 
+                    file.parentFile.absolutePath.replace("${Environment.getExternalStorageDirectory().absolutePath}/", ""))
+                val fallbackIntent = Intent(Intent.ACTION_VIEW).apply {
+                    setDataAndType(fallbackUri, "*/*")
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                startActivity(fallbackIntent)
+            } catch (ex: Exception) {
+                Toast.makeText(this, "Ошибка перехода.", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+}
