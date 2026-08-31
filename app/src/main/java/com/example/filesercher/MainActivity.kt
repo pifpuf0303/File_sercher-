@@ -62,7 +62,7 @@ class MainActivity : Activity() {
             setStroke(2, Color.parseColor("#33333C"))
         }
         etSearchInput = EditText(this).apply {
-            hint = "Введите имя файла или text внутри..."
+            hint = "Введите имя файла или текст внутри..."
             setHintTextColor(Color.parseColor("#666666"))
             setTextColor(Color.WHITE)
             textSize = 15f
@@ -88,10 +88,20 @@ class MainActivity : Activity() {
         }
         mainLayout.addView(btnScan)
 
-        progressBar = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
+        // Исправленный круглый ProgressBar без привязки к XML-стилям
+        progressBar = ProgressBar(this).apply {
             visibility = View.GONE
-            setPadding(0, 20, 0, 10)
         }
+        
+        // Размещаем крутилку по центру
+        val progressParams = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        ).apply {
+            gravity = Gravity.CENTER
+            setMargins(0, 20, 0, 10)
+        }
+        progressBar.layoutParams = progressParams
         mainLayout.addView(progressBar)
 
         tvStatus = TextView(this).apply {
@@ -99,6 +109,7 @@ class MainActivity : Activity() {
             textSize = 13f
             setTextColor(Color.parseColor("#8E8E93"))
             setPadding(0, 20, 0, 20)
+            gravity = Gravity.CENTER
         }
         mainLayout.addView(tvStatus)
 
@@ -142,7 +153,6 @@ class MainActivity : Activity() {
         btnScan.isEnabled = false
         btnScan.alpha = 0.5f
         progressBar.visibility = View.VISIBLE
-        progressBar.isIndeterminate = true
 
         thread {
             val rootDir = Environment.getExternalStorageDirectory()
@@ -249,11 +259,4 @@ class MainActivity : Activity() {
             val uri = DocumentsContract.buildDocumentUri(authority, documentId)
 
             val intent = Intent(Intent.ACTION_VIEW).apply {
-                setDataAndType(uri, "vnd.android.document/directory")
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }
-            startActivity(intent)
-        } catch (e: Exception) {
-            try {
-                val fallbackUri = Uri.parse("content://com.android.externalstorage.documents/document/primary:" + 
-                    
+                
