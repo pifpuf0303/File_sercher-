@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://android.com"
-    package="com.example.filesercher">
+<manifest 
+ xmlns:android="http://schemas.android."
+ android:id="org.apk.res.android">
 
     <application
         android:allowBackup="true"
@@ -20,4 +21,5 @@
     </application>
 
 </manifest>
+
 
