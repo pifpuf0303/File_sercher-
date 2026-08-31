@@ -6,7 +6,7 @@
 
     <application
         android:allowBackup="true"
-        android:label="Fils ME ᴘʀᴏᴊᴇᴄᴛ Project"
+        android:label="Files ME ᴘʀᴏᴊᴇᴄᴛ"
         android:supportsRtl="true">
         
         <activity
