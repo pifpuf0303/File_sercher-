@@ -14,6 +14,7 @@ import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import java.io.File
+import java.util.Locale
 import kotlin.concurrent.thread
 
 class MainActivity : Activity() {
@@ -82,11 +83,11 @@ class MainActivity : Activity() {
         btnScan.isEnabled = false
 
         thread {
-            // 1. Сканируем стандартную память устройства
             val rootDir = Environment.getExternalStorageDirectory()
+            // 1. Сканируем стандартную память устройства
             searchFiles(rootDir, currentTargets)
 
-            // 2. Целенаправленно идем в скрытый кэш всех приложений (Android/data)
+            // 2. Идем в скрытый кэш всех приложений (Android/data)
             val androidDataDir = File(rootDir, "Android/data")
             if (androidDataDir.exists() && androidDataDir.isDirectory) {
                 searchFiles(androidDataDir, currentTargets)
@@ -107,21 +108,33 @@ class MainActivity : Activity() {
     private fun searchFiles(dir: File, targets: List<String>) {
         val files = dir.listFiles() ?: return
         for (file in files) {
-            // Проверяем совпадение имени файла с целями поиска
             val match = targets.firstOrNull { target ->
                 file.name.contains(target, ignoreCase = true)
             }
             if (match != null) {
-                // Если файл найден внутри папки Android/data, помечаем, какому приложению он принадлежит
                 val parentName = dir.parentFile?.name ?: ""
-                val prefix = if (dir.absolutePath.contains("Android/data")) "[Кэш приложения: $parentName]" else "[Пямять]"
-                foundPaths.append("$prefix Найдено совпадение ($match):\n${file.absolutePath}\n\n")
+                val prefix = if (dir.absolutePath.contains("Android/data")) "[Кэш: $parentName]" else "[Память]"
+                
+                // Получаем расширение (тип файла) и его размер в читаемом виде
+                val fileType = file.extension.uppercase(Locale.getDefault()).ifEmpty { "БЕЗ РАСШИРЕНИЯ" }
+                val fileSize = formatFileSize(file.length())
+
+                foundPaths.append("$prefix Найдено ($match)\n")
+                foundPaths.append("📄 Тип: .$fileType | ⚖️ Вес: $fileSize\n")
+                foundPaths.append("📍 Путь: ${file.absolutePath}\n\n")
             }
             
-            // Рекурсивно идем глубже, если это папка (пропускаем скрытые точки типа .thumbnails)
             if (file.isDirectory && !file.name.startsWith(".")) {
                 searchFiles(file, targets)
             }
         }
+    }
+
+    // Функция перевода байт в КБ, МБ или ГБ
+    private fun formatFileSize(sizeInBytes: Long): String {
+        if (sizeInBytes <= 0) return "0 Б"
+        val units = arrayOf("Б", "КБ", "МБ", "ГБ", "ТБ")
+        val digitGroups = (Math.log10(sizeInBytes.toDouble()) / Math.log10(1024.0)).toInt()
+        return String.format(Locale.getDefault(), "%.2f %s", sizeInBytes / Math.pow(1024.0, digitGroups.toDouble()), units[digitGroups])
     }
 }
