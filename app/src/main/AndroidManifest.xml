@@ -1,14 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest 
- xmlns:android="http://schemas.android."
- android:id="org.apk.res.android">
+<manifest>
 
     <application
         android:allowBackup="true"
-        android:icon="@mipmap/ic_launcher"
         android:label="File Sercher"
-        android:supportsRtl="true"
-        android:theme="@style/Theme.Material3.DayNight.NoActionBar">
+        android:supportsRtl="true">
         
         <activity
             android:name=".MainActivity"
@@ -21,5 +17,6 @@
     </application>
 
 </manifest>
+
 
 
