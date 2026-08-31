@@ -38,14 +38,12 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Используем стандартный контейнер, но задаем ему темный цвет фона
         val mainLayout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(Color.parseColor("#121214"))
             setPadding(32, 32, 32, 32)
         }
 
-        // Красивый золотой заголовок ME PROJECT
         val tvTitle = TextView(this).apply {
             text = "ME PROJECT : SEARCHER"
             textSize = 20f
@@ -56,7 +54,6 @@ class MainActivity : Activity() {
         }
         mainLayout.addView(tvTitle)
 
-        // Поле ввода с подсказкой
         etSearchInput = EditText(this).apply {
             hint = "Введите имя файла для поиска..."
             setHintTextColor(Color.parseColor("#666666"))
@@ -65,19 +62,16 @@ class MainActivity : Activity() {
         }
         mainLayout.addView(etSearchInput)
 
-        // Наша классическая, надежная кнопка Android — она появится 100%!
         btnScan = Button(this).apply {
             text = "ГЛУБОКИЙ ПОИСК ВЕЗДЕ"
         }
         mainLayout.addView(btnScan)
 
-        // Стандартная крутилка прогресса
         progressBar = ProgressBar(this).apply {
             visibility = View.GONE
         }
         mainLayout.addView(progressBar)
 
-        // Статус процесса
         tvStatus = TextView(this).apply {
             text = "Приложение готово к работе"
             textSize = 14f
@@ -86,7 +80,6 @@ class MainActivity : Activity() {
         }
         mainLayout.addView(tvStatus)
 
-        // Область прокрутки результатов
         val scrollView = ScrollView(this)
         llResultsContainer = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -160,13 +153,15 @@ class MainActivity : Activity() {
                 val parentName = dir.parentFile?.name ?: ""
                 val prefix = if (dir.absolutePath.contains("Android/data")) "[Кэш: $parentName]" else "[Память]"
                 val fileType = file.extension.uppercase(Locale.getDefault()).ifEmpty { "FILE" }
+                
+                // Снова вычисляем вес файла в КБ, МБ или ГБ
+                val fileSize = formatFileSize(file.length())
 
                 runOnUiThread {
-                    // Оставляем красивый неоново-зеленый дизайн карточек найденных файлов
                     val tvFileItem = TextView(this@MainActivity).apply {
-                        text = "$prefix Найдено ($matchByName)\n📄 Тип: .$fileType\n📍 Путь: ${file.absolutePath}\n"
+                        text = "$prefix Найдено ($matchByName)\n📄 Тип: .$fileType | ⚖️ Вес: $fileSize\n📍 Путь: ${file.absolutePath}\n"
                         textSize = 13f
-                        setTextColor(Color.parseColor("#00FF66")) // Неоново-зеленый текст
+                        setTextColor(Color.parseColor("#00FF66"))
                         setPadding(20, 20, 20, 20)
                         
                         val itemShape = GradientDrawable().apply {
@@ -183,7 +178,6 @@ class MainActivity : Activity() {
                     ).apply { setMargins(0, 0, 0, 16) }
                     tvFileItem.layoutParams = params
 
-                    // ФУНКЦИЯ ПЕРЕХОДА: клик перенаправляет прямо в нужную папку проводника
                     tvFileItem.setOnClickListener { openFolderDirectly(file) }
                     llResultsContainer.addView(tvFileItem)
                 }
@@ -224,5 +218,13 @@ class MainActivity : Activity() {
                 Toast.makeText(this, "Ошибка перехода в папку.", Toast.LENGTH_SHORT).show()
             }
         }
+    }
+
+    // Возвращаем функцию перевода байт в читаемый размер
+    private fun formatFileSize(sizeInBytes: Long): String {
+        if (sizeInBytes <= 0) return "0 Б"
+        val units = arrayOf("Б", "КБ", "МБ", "ГБ", "ТБ")
+        val digitGroups = (Math.log10(sizeInBytes.toDouble()) / Math.log10(1024.0)).toInt()
+        return String.format(Locale.getDefault(), "%.2f %s", sizeInBytes / Math.pow(1024.0, digitGroups.toDouble()), units[digitGroups])
     }
 }
