@@ -22,7 +22,6 @@ import android.widget.TextView
 import android.widget.Toast
 import java.io.File
 import java.util.Locale
-import java.util.concurrent.atomic.AtomicInteger
 import kotlin.concurrent.thread
 
 class MainActivity : Activity() {
@@ -36,35 +35,31 @@ class MainActivity : Activity() {
     private val defaultTargetNames = listOf("libil2cpp.so", "Yandere.zip", "R4x", "Viento", "Spoof_lios")
     private val textExtensions = listOf("txt", "log", "cfg", "json", "xml", "ini", "yaml", "yml", "conf")
     
-    // Потокобезопасный счётчик проверенных папок
-    private val checkedDirsCount = AtomicInteger(0)
+    private var checkedDirsCount = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Главный контейнер с тёмным футуристичным фоном
         val mainLayout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Color.parseColor("#121214")) // Тёмно-угольный цвет
+            setBackgroundColor(Color.parseColor("#121214"))
             setPadding(40, 50, 40, 40)
         }
 
-        // Заголовок приложения в стиле ME PROJECT
         val tvTitle = TextView(this).apply {
             text = "ME PROJECT : SEARCHER"
             textSize = 20f
-            setTextColor(Color.parseColor("#FFD700")) // Золотой цвет
+            setTextColor(Color.parseColor("#FFD700"))
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
             gravity = Gravity.CENTER
             setPadding(0, 0, 0, 40)
         }
         mainLayout.addView(tvTitle)
 
-        // Красивое закруглённое поле ввода
         val inputShape = GradientDrawable().apply {
-            setColor(Color.parseColor("#1A1A1E")) // Чуть светлее фона
+            setColor(Color.parseColor("#1A1A1E"))
             cornerRadius = 20f
-            setStroke(2, Color.parseColor("#33333C")) // Тёмно-серая рамка
+            setStroke(2, Color.parseColor("#33333C"))
         }
         etSearchInput = EditText(this).apply {
             hint = "Введите имя файла или текст внутри..."
@@ -76,13 +71,11 @@ class MainActivity : Activity() {
         }
         mainLayout.addView(etSearchInput)
 
-        // Разделитель
         val spacer = View(this).apply { minimumHeight = 30 }
         mainLayout.addView(spacer)
 
-        // Стильная золотая кнопка с закруглёнными углами
         val buttonShape = GradientDrawable().apply {
-            setColor(Color.parseColor("#FFD700")) // Золотой цвет кнопки
+            setColor(Color.parseColor("#FFD700"))
             cornerRadius = 25f
         }
         btnScan = Button(this).apply {
@@ -95,14 +88,12 @@ class MainActivity : Activity() {
         }
         mainLayout.addView(btnScan)
 
-        // Горизонтальный индикатор прогресса (ProgressBar)
         progressBar = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
             visibility = View.GONE
             setPadding(0, 20, 0, 10)
         }
         mainLayout.addView(progressBar)
 
-        // Статусная строка для вывода живого счётчика папок
         tvStatus = TextView(this).apply {
             text = "Приложение готово к работе"
             textSize = 13f
@@ -111,7 +102,6 @@ class MainActivity : Activity() {
         }
         mainLayout.addView(tvStatus)
 
-        // Контейнер для списков результатов
         val scrollView = ScrollView(this).apply {
             isVerticalScrollBarEnabled = false
         }
@@ -144,7 +134,7 @@ class MainActivity : Activity() {
 
     private fun runSearch() {
         llResultsContainer.removeAllViews()
-        checkedDirsCount.set(0) // Сбрасываем счётчик папок
+        checkedDirsCount = 0
         
         val query = etSearchInput.text.toString().trim()
         val currentTargets = if (query.isEmpty()) defaultTargetNames else listOf(query)
@@ -152,7 +142,7 @@ class MainActivity : Activity() {
         btnScan.isEnabled = false
         btnScan.alpha = 0.5f
         progressBar.visibility = View.VISIBLE
-        progressBar.isIndeterminate = true // Бегущая полоса анимации
+        progressBar.isIndeterminate = true
 
         thread {
             val rootDir = Environment.getExternalStorageDirectory()
@@ -169,9 +159,9 @@ class MainActivity : Activity() {
                 progressBar.visibility = View.GONE
                 
                 if (llResultsContainer.childCount == 0) {
-                    tvStatus.text = "Ничего не найдено. Проверено папок: ${checkedDirsCount.get()}"
+                    tvStatus.text = "Ничего не найдено. Проверено папок: $checkedDirsCount"
                 } else {
-                    tvStatus.text = "Успешно! Найдено совпадений: ${llResultsContainer.childCount}\nПроверено папок в системе: ${checkedDirsCount.get()}"
+                    tvStatus.text = "Успешно! Найдено совпадений: ${llResultsContainer.childCount}\nПроверено папок в системе: $checkedDirsCount"
                 }
                 Toast.makeText(this, "Поиск успешно завершён!", Toast.LENGTH_SHORT).show()
             }
@@ -181,11 +171,10 @@ class MainActivity : Activity() {
     private fun searchFiles(dir: File, targets: List<String>, originalQuery: String) {
         val files = dir.listFiles() ?: return
         
-        // Увеличиваем счётчик при входе в каждую новую папку
-        val currentCount = checkedDirsCount.incrementAndGet()
-        if (currentCount % 50 == 0) { // Обновляем текст на экране каждые 50 папок, чтобы интерфейс не лагал
+        checkedDirsCount++
+        if (checkedDirsCount % 50 == 0) {
             runOnUiThread {
-                tvStatus.text = "⚡ Идёт сканирование... Проверено папок: $currentCount"
+                tvStatus.text = "⚡ Идёт сканирование... Проверено папок: $checkedDirsCount"
             }
         }
 
@@ -217,14 +206,12 @@ class MainActivity : Activity() {
                 val fileSize = formatFileSize(file.length())
 
                 runOnUiThread {
-                    // Стильная тёмная карточка для каждого найденного файла
                     val tvFileItem = TextView(this@MainActivity).apply {
                         text = "$prefix Найдено ($matchReason)\n📄 Тип: .$fileType | ⚖️ Вес: $fileSize\n📍 Путь: ${file.absolutePath}\n"
                         textSize = 13f
-                        setTextColor(Color.parseColor("#00FF66")) // Ярко-зелёный неоновый текст для совпадений
+                        setTextColor(Color.parseColor("#00FF66"))
                         setPadding(25, 25, 25, 25)
                         
-                        // Задний фон карточки файла с рамкой
                         val itemShape = GradientDrawable().apply {
                             setColor(Color.parseColor("#1A1A1E"))
                             cornerRadius = 15f
@@ -233,7 +220,6 @@ class MainActivity : Activity() {
                         background = itemShape
                     }
 
-                    // Отступ между карточками файлов
                     val params = LinearLayout.LayoutParams(
                         LinearLayout.LayoutParams.MATCH_PARENT,
                         LinearLayout.LayoutParams.WRAP_CONTENT
@@ -246,4 +232,28 @@ class MainActivity : Activity() {
             }
             
             if (file.isDirectory && !file.name.startsWith(".")) {
-                
+                searchFiles(file, targets, originalQuery)
+            }
+        }
+    }
+
+    private fun openFolderDirectly(file: File) {
+        try {
+            val folder = file.parentFile ?: return
+            val relativePath = folder.absolutePath
+                .replace("${Environment.getExternalStorageDirectory().absolutePath}/", "")
+                .replace(Environment.getExternalStorageDirectory().absolutePath, "")
+
+            val authority = "com.android.externalstorage.documents"
+            val documentId = if (relativePath.isEmpty()) "primary:" else "primary:$relativePath"
+            val uri = DocumentsContract.buildDocumentUri(authority, documentId)
+
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(uri, "vnd.android.document/directory")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            startActivity(intent)
+        } catch (e: Exception) {
+            try {
+                val fallbackUri = Uri.parse("content://com.android.externalstorage.documents/document/primary:" + 
+                        
