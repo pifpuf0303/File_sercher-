@@ -17,6 +17,11 @@ jobs:
         distribution: 'temurin'
         cache: gradle
 
+    - name: Download Gradle Wrapper JAR
+      run: |
+        mkdir -p gradle/wrapper
+        curl -L -o gradle/wrapper/gradle-wrapper.jar https://github.com
+
     - name: Make gradlew executable
       run: chmod +x gradlew
       continue-on-error: true
@@ -29,6 +34,7 @@ jobs:
       with:
         name: app-debug
         path: app/build/outputs/apk/debug/app-debug.apk
+        
         
         
                                                                                                                                             
