@@ -6,7 +6,7 @@
 
     <application
         android:allowBackup="true"
-        android:label="File Sercher"
+        android:label="Fils ME ᴘʀᴏᴊᴇᴄᴛ Project"
         android:supportsRtl="true">
         
         <activity
