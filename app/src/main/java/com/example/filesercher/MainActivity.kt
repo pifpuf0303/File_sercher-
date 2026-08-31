@@ -72,6 +72,7 @@ class MainActivity : Activity() {
         val spacer = View(this).apply { minimumHeight = 30 }
         mainLayout.addView(spacer)
 
+        // КНОПКА ТЕПЕРЬ ТУТ: Жестко добавляется сразу после поля ввода
         val buttonShape = GradientDrawable().apply {
             setColor(Color.parseColor("#FFD700"))
             cornerRadius = 25f
@@ -89,6 +90,14 @@ class MainActivity : Activity() {
         progressBar = ProgressBar(this).apply {
             visibility = View.GONE
         }
+        val progressParams = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        ).apply {
+            gravity = Gravity.CENTER
+            setMargins(0, 20, 0, 10)
+        }
+        progressBar.layoutParams = progressParams
         mainLayout.addView(progressBar)
 
         tvStatus = TextView(this).apply {
