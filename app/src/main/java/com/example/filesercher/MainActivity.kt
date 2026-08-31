@@ -38,77 +38,55 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Используем стандартный контейнер, но задаем ему темный цвет фона
         val mainLayout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(Color.parseColor("#121214"))
-            setPadding(40, 50, 40, 40)
+            setPadding(32, 32, 32, 32)
         }
 
+        // Красивый золотой заголовок ME PROJECT
         val tvTitle = TextView(this).apply {
             text = "ME PROJECT : SEARCHER"
             textSize = 20f
             setTextColor(Color.parseColor("#FFD700"))
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
             gravity = Gravity.CENTER
-            setPadding(0, 0, 0, 40)
+            setPadding(0, 10, 0, 30)
         }
         mainLayout.addView(tvTitle)
 
-        val inputShape = GradientDrawable().apply {
-            setColor(Color.parseColor("#1A1A1E"))
-            cornerRadius = 20f
-            setStroke(2, Color.parseColor("#33333C"))
-        }
+        // Поле ввода с подсказкой
         etSearchInput = EditText(this).apply {
             hint = "Введите имя файла для поиска..."
             setHintTextColor(Color.parseColor("#666666"))
             setTextColor(Color.WHITE)
-            textSize = 15f
-            background = inputShape
-            setPadding(30, 30, 30, 30)
+            textSize = 16f
         }
         mainLayout.addView(etSearchInput)
 
-        val spacer = View(this).apply { minimumHeight = 30 }
-        mainLayout.addView(spacer)
-
-        // КНОПКА ТЕПЕРЬ ТУТ: Жестко добавляется сразу после поля ввода
-        val buttonShape = GradientDrawable().apply {
-            setColor(Color.parseColor("#FFD700"))
-            cornerRadius = 25f
-        }
+        // Наша классическая, надежная кнопка Android — она появится 100%!
         btnScan = Button(this).apply {
             text = "ГЛУБОКИЙ ПОИСК ВЕЗДЕ"
-            setTextColor(Color.BLACK)
-            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
-            textSize = 15f
-            background = buttonShape
-            setPadding(0, 25, 0, 25)
         }
         mainLayout.addView(btnScan)
 
+        // Стандартная крутилка прогресса
         progressBar = ProgressBar(this).apply {
             visibility = View.GONE
         }
-        val progressParams = LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.WRAP_CONTENT,
-            LinearLayout.LayoutParams.WRAP_CONTENT
-        ).apply {
-            gravity = Gravity.CENTER
-            setMargins(0, 20, 0, 10)
-        }
-        progressBar.layoutParams = progressParams
         mainLayout.addView(progressBar)
 
+        // Статус процесса
         tvStatus = TextView(this).apply {
-            text = "Приложение ready к работе"
-            textSize = 13f
+            text = "Приложение готово к работе"
+            textSize = 14f
             setTextColor(Color.parseColor("#8E8E93"))
-            setPadding(0, 20, 0, 20)
-            gravity = Gravity.CENTER
+            setPadding(0, 16, 0, 16)
         }
         mainLayout.addView(tvStatus)
 
+        // Область прокрутки результатов
         val scrollView = ScrollView(this)
         llResultsContainer = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -160,7 +138,7 @@ class MainActivity : Activity() {
                 btnScan.isEnabled = true
                 progressBar.visibility = View.GONE
                 tvStatus.text = "Успешно! Найдено совпадений: ${llResultsContainer.childCount}"
-                Toast.makeText(this@MainActivity, "Поиск успешно завершён!", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this@MainActivity, "Поиск завершён!", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -184,15 +162,16 @@ class MainActivity : Activity() {
                 val fileType = file.extension.uppercase(Locale.getDefault()).ifEmpty { "FILE" }
 
                 runOnUiThread {
+                    // Оставляем красивый неоново-зеленый дизайн карточек найденных файлов
                     val tvFileItem = TextView(this@MainActivity).apply {
-                        text = "$prefix Найдено ($matchByName)\n📄 Тип: .$fileType |📍 Путь: ${file.absolutePath}\n"
+                        text = "$prefix Найдено ($matchByName)\n📄 Тип: .$fileType\n📍 Путь: ${file.absolutePath}\n"
                         textSize = 13f
-                        setTextColor(Color.parseColor("#00FF66"))
-                        setPadding(25, 25, 25, 25)
+                        setTextColor(Color.parseColor("#00FF66")) // Неоново-зеленый текст
+                        setPadding(20, 20, 20, 20)
                         
                         val itemShape = GradientDrawable().apply {
                             setColor(Color.parseColor("#1A1A1E"))
-                            cornerRadius = 15f
+                            cornerRadius = 12f
                             setStroke(1, Color.parseColor("#2C2C35"))
                         }
                         background = itemShape
@@ -201,9 +180,10 @@ class MainActivity : Activity() {
                     val params = LinearLayout.LayoutParams(
                         LinearLayout.LayoutParams.MATCH_PARENT,
                         LinearLayout.LayoutParams.WRAP_CONTENT
-                    ).apply { setMargins(0, 0, 0, 20) }
+                    ).apply { setMargins(0, 0, 0, 16) }
                     tvFileItem.layoutParams = params
 
+                    // ФУНКЦИЯ ПЕРЕХОДА: клик перенаправляет прямо в нужную папку проводника
                     tvFileItem.setOnClickListener { openFolderDirectly(file) }
                     llResultsContainer.addView(tvFileItem)
                 }
@@ -241,7 +221,7 @@ class MainActivity : Activity() {
                 }
                 startActivity(fallbackIntent)
             } catch (ex: Exception) {
-                Toast.makeText(this, "Ошибка перехода.", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Ошибка перехода в папку.", Toast.LENGTH_SHORT).show()
             }
         }
     }
