@@ -18,13 +18,8 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    - name: Setup Gradle 8.5
-      uses: gradle/actions/setup-gradle@v4
-      with:
-        gradle-version: '8.5'
-
-    # Сервер сам запишет идеальный код поверх любых ошибок мобильного браузера!
-    - name: Force Overwrite Clean Kotlin Code
+    # Перезаписываем чистый Kotlin-код приложения во временную память сервера
+    - name: Overwrite Clean Kotlin Code
       run: |
         mkdir -p app/src/main/java/com/example/filesercher
         cat << 'EOF' > app/src/main/java/com/example/filesercher/MainActivity.kt
@@ -242,5 +237,7 @@ jobs:
                                 textSize = 13f
                                 setTextColor(Color.parseColor("#00FF66"))
                                 setPadding(20, 20, 20, 20)
-
                                 
+                                val itemShape = GradientDrawable().apply {
+                                    setColor(Color.parseColor("#1A1A1E"))
+                                    
