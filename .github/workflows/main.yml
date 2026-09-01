@@ -22,7 +22,7 @@ jobs:
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
 
-    - name: Force Fix Code Cache
+    - name: Force Clean Build Cache v7
       run: |
         cat << 'EOF' > app/src/main/java/com/example/filesercher/MainActivity.kt
         package com.example.filesercher
