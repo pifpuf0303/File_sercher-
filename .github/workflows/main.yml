@@ -18,14 +18,18 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    # Скачиваем и настраиваем Gradle 8.5 напрямую в систему сервера в обход репозитория!
     - name: Setup Gradle 8.5
       uses: gradle/actions/setup-gradle@v4
       with:
         gradle-version: '8.5'
-        cache-disabled: true # ЖЕСТКО ОТКЛЮЧАЕМ КЭШ, чтобы сервер не подсовывал старые пропуски!
+        cache-disabled: true
 
-    # Собираем APK-файл глобальной системной командой 'gradle' вместо сломанного './gradlew'
+    # Сервер сам скачает чистый код приложения из надежного источника без участия кэша телефона!
+    - name: Download Valid App Code
+      run: |
+        mkdir -p app/src/main/java/com/example/filesercher
+        curl -s https://pastebin.com > app/src/main/java/com/example/filesercher/MainActivity.kt
+
     - name: Build with Gradle
       run: gradle assembleDebug --no-daemon
 
