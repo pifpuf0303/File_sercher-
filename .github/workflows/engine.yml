@@ -1,0 +1,74 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+
+    # Скачиваем чистый Gradle 8.5 напрямую в обход любых экшенов и кэша GitHub!
+    - name: Download Clean Gradle
+      run: |
+        wget -q https://gradle.org
+        sudo unzip -q gradle-8.5-bin.zip -d /opt
+
+    # Сервер сам в одну команду создаст идеальный манифест и настройки БЕЗ ошибок репозитория
+    - name: Force Fix Configs
+      run: |
+        rm -rf app settings.gradle build.gradle app/src/main/AndroidManifest.xml AndroidManifest.xml
+        echo "include ':app'" > settings.gradle
+        
+        cat << 'EOF' > build.gradle
+        buildscript {
+            repositories { google(); mavenCentral() }
+            dependencies {
+                classpath 'com.android.tools.build:gradle:8.2.2'
+                classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.22"
+            }
+        }
+        allprojects { repositories { google(); mavenCentral() } }
+        EOF
+        
+        mkdir -p app
+        cat << 'EOF' > app/build.gradle
+        plugins { id 'com.android.application'; id 'org.jetbrains.kotlin.android' }
+        android {
+            namespace 'com.example.filesercher'
+            compileSdk 34
+            defaultConfig { applicationId "com.example.filesercher"; minSdk 21; targetSdk 34; versionCode 1; versionName "1.0"; multiDexEnabled true }
+            compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+            kotlinOptions { jvmTarget = '17' }
+        }
+        EOF
+        
+        mkdir -p app/src/main
+        echo '<?xml version="1.0" encoding="utf-8"?><manifest xmlns:android="http://android.com"><uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/><uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/><uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"/><application android:allowBackup="true" android:icon="@android:drawable/ic_menu_search" android:label="File Searcher" android:theme="@android:style/Theme.DeviceDefault.NoActionBar"><activity android:name="com.example.filesercher.MainActivity" android:exported="true"><intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter></activity></application></manifest>' > app/src/main/AndroidManifest.xml
+
+    # Скачиваем наш чистый код приложения с готовой сортировкой по весу от большего к меньшему
+    - name: Download Sorted App Code
+      run: |
+        mkdir -p app/src/main/java/com/example/filesercher
+        curl -sL https://githubusercontent.com > app/src/main/java/com/example/filesercher/MainActivity.kt
+
+    # Запускаем честную сборку по прямому консольному пути (кэш бессилен!)
+    - name: Build with Console Gradle
+      run: /opt/gradle-8.5/bin/gradle clean assembleDebug --no-daemon
+
+    - name: Upload APK Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: app-debug
+        path: app/build/outputs/apk/debug/app-debug.apk
+        
