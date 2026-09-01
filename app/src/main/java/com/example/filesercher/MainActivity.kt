@@ -244,14 +244,10 @@ class MainActivity : Activity() {
     private fun openFolderDirectly(file: File) {
         try {
             val folder = file.parentFile ?: return
-            val relativePath = folder.absolutePath
-                .replace("${Environment.getExternalStorageDirectory().absolutePath}/", "")
-                .replace(Environment.getExternalStorageDirectory().absolutePath, "")
-
+            val relativePath = folder.absolutePath.replace("${Environment.getExternalStorageDirectory().absolutePath}/", "").replace(Environment.getExternalStorageDirectory().absolutePath, "")
             val authority = "com.android.externalstorage.documents"
             val documentId = if (relativePath.isEmpty()) "primary:" else "primary:$relativePath"
             val uri = DocumentsContract.buildDocumentUri(authority, documentId)
-
             val intent = Intent(Intent.ACTION_VIEW).apply {
                 setDataAndType(uri, "vnd.android.document/directory")
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
@@ -259,6 +255,5 @@ class MainActivity : Activity() {
             startActivity(intent)
         } catch (e: Exception) {
             try {
-                val fallbackUri = Uri.parse("content://com.android.externalstorage.documents/document/primary:" + 
-                    file.parentFile.absolutePath.replace("${Environment.getExternalStorageDirectory().absolutePath}/", ""))
+                val fallbackUri = Uri.parse("content://com.android.externalstorage.documents/document/primary:" + file.parentFile.absolutePath.replace("${Environment.getExternalStorageDirectory().absolutePath}/", ""))
                 
