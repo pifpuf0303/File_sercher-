@@ -198,60 +198,67 @@ class MainActivity : Activity() {
         for (file in files) {
             val matchByName = targets.firstOrNull { target -> file.name.contains(target, ignoreCase = true) }
 
-                    if (matchByName != null) {
-                        val parentName = dir.parentFile?.name ?: ""
-                        val prefix = if (dir.absolutePath.contains("Android/data") || scanCacheOnly) "[Кэш: $parentName]" else "[Память]"
-                        val fileType = file.extension.uppercase(Locale.getDefault()).ifEmpty { "FILE" }
+            if (matchByName != null) {
+                val parentName = dir.parentFile?.name ?: ""
+                val prefix = if (dir.absolutePath.contains("Android/data") || scanCacheOnly) "[Кэш: $parentName]" else "[Память]"
+                val fileType = file.extension.uppercase(Locale.getDefault()).ifEmpty { "FILE" }
+                
+                val bytes = file.length()
+                val fileSize = if (bytes >= 1024 * 1024) "${bytes / (1024 * 1024)} МБ" else "${bytes / 1024} КБ"
+
+                runOnUiThread {
+                    val tvFileItem = TextView(this@MainActivity).apply {
+                        text = "$prefix Найдено ($matchByName)\n📄 Тип: .$fileType | ⚖️ Вес: $fileSize\n📍 Путь: ${file.absolutePath}\n"
+                        textSize = 13f
+                        setTextColor(Color.parseColor("#00FF66"))
+                        setPadding(20, 20, 20, 20)
                         
-                        val bytes = file.length()
-                        val fileSize = if (bytes >= 1024 * 1024) "${bytes / (1024 * 1024)} МБ" else "${bytes / 1024} КБ"
-
-                        runOnUiThread {
-                            val tvFileItem = TextView(this@MainActivity).apply {
-                                text = "$prefix Найдено ($matchByName)\n📄 Тип: .$fileType | ⚖️ Вес: $fileSize\n📍 Путь: ${file.absolutePath}\n"
-                                textSize = 13f
-                                setTextColor(Color.parseColor("#00FF66"))
-                                setPadding(20, 20, 20, 20)
-                                
-                                val itemShape = GradientDrawable().apply {
-                                    setColor(Color.parseColor("#1A1A1E"))
-                                    cornerRadius = 12f
-                                    setStroke(1, Color.parseColor("#2C2C35"))
-                                }
-                                background = itemShape
-                            }
-
-                            val params = LinearLayout.LayoutParams(
-                                LinearLayout.LayoutParams.MATCH_PARENT,
-                                LinearLayout.LayoutParams.WRAP_CONTENT
-                            ).apply { setMargins(0, 0, 0, 16) }
-                            tvFileItem.layoutParams = params
-
-                            tvFileItem.setOnClickListener { openFolderDirectly(file) }
-                            llResultsContainer.addView(tvFileItem)
+                        val itemShape = GradientDrawable().apply {
+                            setColor(Color.parseColor("#1A1A1E"))
+                            cornerRadius = 12f
+                            setStroke(1, Color.parseColor("#2C2C35"))
                         }
+                        background = itemShape
                     }
-                    
-                    if (file.isDirectory && !file.name.startsWith(".")) {
-                        if (!scanCacheOnly && file.name.equals("Android", ignoreCase = true)) {
-                            continue
-                        }
-                        searchFiles(file, targets, scanCacheOnly)
-                    }
+
+                    val params = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                    ).apply { setMargins(0, 0, 0, 16) }
+                    tvFileItem.layoutParams = params
+
+                    tvFileItem.setOnClickListener { openFolderDirectly(file) }
+                    llResultsContainer.addView(tvFileItem)
                 }
             }
+            
+            if (file.isDirectory && !file.name.startsWith(".")) {
+                if (!scanCacheOnly && file.name.equals("Android", ignoreCase = true)) {
+                    continue
+                }
+                searchFiles(file, targets, scanCacheOnly)
+            }
+        }
+    }
 
-            private fun openFolderDirectly(file: File) {
-                try {
-                    val folder = file.parentFile ?: return
-                    val relativePath = folder.absolutePath
-                        .replace("${Environment.getExternalStorageDirectory().absolutePath}/", "")
-                        .replace(Environment.getExternalStorageDirectory().absolutePath, "")
+    private fun openFolderDirectly(file: File) {
+        try {
+            val folder = file.parentFile ?: return
+            val relativePath = folder.absolutePath
+                .replace("${Environment.getExternalStorageDirectory().absolutePath}/", "")
+                .replace(Environment.getExternalStorageDirectory().absolutePath, "")
 
-                    val authority = "com.android.externalstorage.documents"
-                    val documentId = if (relativePath.isEmpty()) "primary:" else "primary:$relativePath"
-                    val uri = DocumentsContract.buildDocumentUri(authority, documentId)
+            val authority = "com.android.externalstorage.documents"
+            val documentId = if (relativePath.isEmpty()) "primary:" else "primary:$relativePath"
+            val uri = DocumentsContract.buildDocumentUri(authority, documentId)
 
-                    val intent = Intent(Intent.ACTION_VIEW).apply {
-                        setDataAndType(uri, "vnd.android.document/directory")
-                        
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(uri, "vnd.android.document/directory")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            startActivity(intent)
+        } catch (e: Exception) {
+            try {
+                val fallbackUri = Uri.parse("content://com.android.externalstorage.documents/document/primary:" + 
+                    file.parentFile.absolutePath.replace("${Environment.getExternalStorageDirectory().absolutePath}/", ""))
+                
