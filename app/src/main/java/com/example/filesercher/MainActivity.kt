@@ -203,10 +203,14 @@ class MainActivity : Activity() {
                 val parentName = dir.parentFile?.name ?: ""
                 val prefix = if (dir.absolutePath.contains("Android/data") || scanCacheOnly) "[Кэш: $parentName]" else "[Память]"
                 val fileType = file.extension.uppercase(Locale.getDefault()).ifEmpty { "FILE" }
+                
+                // Исправленный супер-легкий расчет веса файла
+                val bytes = file.length()
+                val fileSize = if (bytes >= 1024 * 1024) "${bytes / (1024 * 1024)} МБ" else "${bytes / 1024} КБ"
 
                 runOnUiThread {
                     val tvFileItem = TextView(this@MainActivity).apply {
-                        text = "$prefix Найдено ($matchByName)\n📄 Тип: .$fileType\n📍 Путь: ${file.absolutePath}\n"
+                        text = "$prefix Найдено ($matchByName)\n📄 Тип: .$fileType | ⚖️ Вес: $fileSize\n📍 Путь: ${file.absolutePath}\n"
                         textSize = 13f
                         setTextColor(Color.parseColor("#00FF66"))
                         setPadding(20, 20, 20, 20)
@@ -258,9 +262,4 @@ class MainActivity : Activity() {
         } catch (e: Exception) {
             try {
                 val fallbackUri = Uri.parse("content://com.android.externalstorage.documents/document/primary:" + 
-                    file.parentFile.absolutePath.replace("${Environment.getExternalStorageDirectory().absolutePath}/", ""))
-                val fallbackIntent = Intent(Intent.ACTION_VIEW).apply {
-                    setDataAndType(fallbackUri, "*/*")
-                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                }
-                
+                        
