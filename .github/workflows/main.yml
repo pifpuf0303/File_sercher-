@@ -18,21 +18,13 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v4
-      with:
-        gradle-version: '8.5'
-
-    # Принудительно создаем АБСОЛЮТНО ВСЕ папки и файлы проекта с нуля на сервере
-    - name: Force Rebuild Clean Project Structure v8
+    # Мы убрали 'uses: gradle/actions/setup-gradle' чтобы сервер не мог использовать старый кэш!
+    - name: Force Rebuild Clean Project Structure v9
       run: |
-        # Полностью очищаем рабочую директорию от старого мусора путей
         rm -rf app settings.gradle build.gradle
         
-        # 1. Создаем корневой settings.gradle
         echo "include ':app'" > settings.gradle
         
-        # 2. Создаем корневой build.gradle
         cat << 'EOF' > build.gradle
         buildscript {
             repositories {
@@ -52,10 +44,8 @@ jobs:
         }
         EOF
         
-        # 3. Создаем физическую папку модуля app и структуру пакетов
         mkdir -p app/src/main/java/com/example/filesercher
         
-        # 4. Создаем внутренний app/build.gradle с Java 17
         cat << 'EOF' > app/build.gradle
         plugins {
             id 'com.android.application'
@@ -86,7 +76,6 @@ jobs:
         }
         EOF
 
-        # 5. Записываем наш рабочий код приложения со всеми тегами и чекбоксами выбора памяти
         cat << 'EOF' > app/src/main/java/com/example/filesercher/MainActivity.kt
         package com.example.filesercher
 
@@ -270,4 +259,15 @@ jobs:
                     runOnUiThread {
                         btnScan.isEnabled = true
                         progressBar.visibility = View.GONE
-                        
+                        tvStatus.text = "Успешно! Найдено совпадений: ${llResultsContainer.childCount}\nПроверено директорий: $checkedDirsCount"
+                        Toast.makeText(this@MainActivity, "Поиск завершён!", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+
+            private fun searchFiles(dir: File, targets: List<String>, scanCacheOnly: Boolean) {
+                val files = dir.listFiles() ?: return
+                checkedDirsCount++
+                
+                if (checkedDirsCount % 100 == 0) {
+                
