@@ -25,6 +25,7 @@ import java.io.File
 import java.util.Locale
 import kotlin.concurrent.thread
 
+// КЭШ СБРОШЕН: v3.0.0
 class MainActivity : Activity() {
 
     private lateinit var etSearchInput: EditText
@@ -66,7 +67,6 @@ class MainActivity : Activity() {
         }
         mainLayout.addView(etSearchInput)
 
-        // Исправленная строка тегов без лишних контейнеров прокрутки
         val tagsLayout = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             setPadding(0, 10, 0, 10)
@@ -261,4 +261,5 @@ class MainActivity : Activity() {
         } catch (e: Exception) {
             try {
                 val fallbackUri = Uri.parse("content://com.android.externalstorage.documents/document/primary:" + 
-                        
+                    file.parentFile.absolutePath.replace("${Environment.getExternalStorageDirectory().absolutePath}/", ""))
+                
