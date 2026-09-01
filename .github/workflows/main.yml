@@ -18,14 +18,8 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    # Готовый официальный инструмент сборки
-    - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v4
-      with:
-        gradle-version: '8.5'
-
     # Принудительно генерируем чистую структуру папок и весь код приложения
-    - name: Force Rebuild Clean Project Structure v12
+    - name: Force Rebuild Clean Project Structure v13
       run: |
         rm -rf app settings.gradle build.gradle
         
@@ -272,4 +266,8 @@ jobs:
             }
 
             private fun searchFiles(dir: File, targets: List<String>, scanCacheOnly: Boolean) {
-            
+                val files = dir.listFiles() ?: return
+                checkedDirsCount++
+                if (checkedDirsCount % 100 == 0) {
+                    runOnUiThread {
+                    
