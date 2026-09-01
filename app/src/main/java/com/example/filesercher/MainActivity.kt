@@ -25,7 +25,6 @@ import java.io.File
 import java.util.Locale
 import kotlin.concurrent.thread
 
-// КЭШ СБРОШЕН: v3.0.0
 class MainActivity : Activity() {
 
     private lateinit var etSearchInput: EditText
@@ -39,6 +38,14 @@ class MainActivity : Activity() {
     
     private val defaultTargetNames = listOf("libil2cpp.so", "Yandere.zip", "R4x", "Viento", "Spoof_lios")
     private var checkedDirsCount = 0
+
+    // ПЕРЕДВИГАЕМ ФУНКЦИЮ НАВЕРХ: теперь она объявлена первой и компилятор её не потеряет
+    private fun formatFileSize(sizeInBytes: Long): String {
+        if (sizeInBytes <= 0) return "0 Б"
+        val units = arrayOf("Б", "КБ", "МБ", "ГБ", "ТБ")
+        val digitGroups = (Math.log10(sizeInBytes.toDouble()) / Math.log10(1024.0)).toInt()
+        return String.format(Locale.getDefault(), "%.2f %s", sizeInBytes / Math.pow(1024.0, digitGroups.toDouble()), units[digitGroups])
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -254,12 +261,4 @@ class MainActivity : Activity() {
             val uri = DocumentsContract.buildDocumentUri(authority, documentId)
 
             val intent = Intent(Intent.ACTION_VIEW).apply {
-                setDataAndType(uri, "vnd.android.document/directory")
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }
-            startActivity(intent)
-        } catch (e: Exception) {
-            try {
-                val fallbackUri = Uri.parse("content://com.android.externalstorage.documents/document/primary:" + 
-                    file.parentFile.absolutePath.replace("${Environment.getExternalStorageDirectory().absolutePath}/", ""))
                 
