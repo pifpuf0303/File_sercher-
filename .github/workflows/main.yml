@@ -24,17 +24,12 @@ jobs:
         gradle-version: '8.5'
         cache-disabled: true
 
-    # Сервер сам переписывает абсолютно всю структуру настроек под единый стандарт
-    # Это на 100% убирает ошибку "Validation failed" в манифесте
     - name: Force Overwrite All Android Configs
       run: |
-        # 1. Стираем старые конфликтующие файлы
         rm -rf app/build.gradle build.gradle settings.gradle app/src/main/AndroidManifest.xml AndroidManifest.xml
         
-        # 2. Создаем корневой settings.gradle
         echo "include ':app'" > settings.gradle
         
-        # 3. Создаем корневой build.gradle
         cat << 'EOF' > build.gradle
         buildscript {
             repositories { google(); mavenCentral() }
@@ -46,7 +41,6 @@ jobs:
         allprojects { repositories { google(); mavenCentral() } }
         EOF
         
-        # 4. Создаем внутренний app/build.gradle с MultiDex и правильным namespace
         mkdir -p app
         cat << 'EOF' > app/build.gradle
         plugins {
@@ -73,7 +67,6 @@ jobs:
         }
         EOF
         
-        # 5. Создаем идеальный чистый AndroidManifest.xml БЕЗ лишних атрибутов package
         mkdir -p app/src/main
         cat << 'EOF' > app/src/main/AndroidManifest.xml
         <?xml version="1.0" encoding="utf-8"?>
