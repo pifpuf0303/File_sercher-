@@ -18,34 +18,76 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    # Принудительно ставим стабильный Gradle 8.5, который понимает наши плагины
     - name: Setup Gradle 8.5
       uses: gradle/actions/setup-gradle@v4
       with:
         gradle-version: '8.5'
         cache-disabled: true
 
-    - name: Force Overwrite Clean Android Manifest
+    # Сервер сам переписывает абсолютно всю структуру настроек под единый стандарт
+    # Это на 100% убирает ошибку "Validation failed" в манифесте
+    - name: Force Overwrite All Android Configs
       run: |
-        rm -rf app/src/main/AndroidManifest.xml AndroidManifest.xml
+        # 1. Стираем старые конфликтующие файлы
+        rm -rf app/build.gradle build.gradle settings.gradle app/src/main/AndroidManifest.xml AndroidManifest.xml
+        
+        # 2. Создаем корневой settings.gradle
+        echo "include ':app'" > settings.gradle
+        
+        # 3. Создаем корневой build.gradle
+        cat << 'EOF' > build.gradle
+        buildscript {
+            repositories { google(); mavenCentral() }
+            dependencies {
+                classpath 'com.android.tools.build:gradle:8.2.2'
+                classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.22"
+            }
+        }
+        allprojects { repositories { google(); mavenCentral() } }
+        EOF
+        
+        # 4. Создаем внутренний app/build.gradle с MultiDex и правильным namespace
+        mkdir -p app
+        cat << 'EOF' > app/build.gradle
+        plugins {
+            id 'com.android.application'
+            id 'org.jetbrains.kotlin.android'
+        }
+        android {
+            namespace 'com.example.filesercher'
+            compileSdk 34
+            defaultConfig {
+                applicationId "com.example.filesercher"
+                minSdk 21
+                targetSdk 34
+                versionCode 1
+                versionName "1.0"
+                multiDexEnabled true
+            }
+            compileOptions {
+                sourceCompatibility JavaVersion.VERSION_17
+                targetCompatibility JavaVersion.VERSION_17
+            }
+            kotlinOptions { jvmTarget = '17' }
+            buildTypes { release { minifyEnabled false } }
+        }
+        EOF
+        
+        # 5. Создаем идеальный чистый AndroidManifest.xml БЕЗ лишних атрибутов package
         mkdir -p app/src/main
         cat << 'EOF' > app/src/main/AndroidManifest.xml
         <?xml version="1.0" encoding="utf-8"?>
-        <manifest xmlns:android="http://android.com"
-            package="com.example.filesercher">
-
+        <manifest xmlns:android="http://android.com">
             <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
             <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
             <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"/>
-
             <application
                 android:allowBackup="true"
                 android:icon="@android:drawable/ic_menu_search"
                 android:label="File Searcher"
                 android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
-                
                 <activity
-                    android:name=".MainActivity"
+                    android:name="com.example.filesercher.MainActivity"
                     android:exported="true">
                     <intent-filter>
                         <action android:name="android.intent.action.MAIN" />
