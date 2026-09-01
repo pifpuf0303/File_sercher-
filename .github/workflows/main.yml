@@ -1,4 +1,4 @@
-name: Build Android APK
+    name: Build Android APK
 
 on:
   push:
@@ -18,17 +18,65 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    # Устанавливаем официальный Gradle прямо в систему сервера
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v4
       with:
         gradle-version: '8.5'
 
-    - name: Force Rebuild Clean Project Structure
+    # Этот шаг принудительно создаст ВСЕ необходимые конфигурационные файлы Gradle
+    - name: Force Generate Project Configs
       run: |
-        rm -rf app/src/main/java
+        # 1. Создаем корневой settings.gradle
+        echo "include ':app'" > settings.gradle
+        
+        # 2. Создаем корневой build.gradle
+        cat << 'EOF' > build.gradle
+        buildscript {
+            repositories {
+                google()
+                mavenCentral()
+            }
+            dependencies {
+                classpath 'com.android.tools.build:gradle:8.2.2'
+                classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.22"
+            }
+        }
+        allprojects {
+            repositories {
+                google()
+                mavenCentral()
+            }
+        }
+        EOF
+        
+        # 3. Создаем структуру для модуля app
         mkdir -p app/src/main/java/com/example/filesercher
         
+        # 4. Создаем внутренний app/build.gradle
+        cat << 'EOF' > app/build.gradle
+        plugins {
+            id 'com.android.application'
+            id 'org.jetbrains.kotlin.android'
+        }
+        android {
+            namespace 'com.example.filesercher'
+            compileSdk 34
+            defaultConfig {
+                applicationId "com.example.filesercher"
+                minSdk 21
+                targetSdk 34
+                versionCode 1
+                versionName "1.0"
+            }
+            buildTypes {
+                release {
+                    minifyEnabled false
+                }
+            }
+        }
+        EOF
+
+        # 5. Записываем наш рабочий код приложения со всеми тегами и чекбоксами выбора памяти
         cat << 'EOF' > app/src/main/java/com/example/filesercher/MainActivity.kt
         package com.example.filesercher
 
@@ -221,29 +269,5 @@ jobs:
             private fun searchFiles(dir: File, targets: List<String>, scanCacheOnly: Boolean) {
                 val files = dir.listFiles() ?: return
                 checkedDirsCount++
+
                 
-                if (checkedDirsCount % 100 == 0) {
-                    runOnUiThread {
-                        tvStatus.text = "⚡ Идёт сканирование папок... [$checkedDirsCount]"
-                    }
-                }
-
-                for (file in files) {
-                    val matchByName = targets.firstOrNull { target -> file.name.contains(target, ignoreCase = true) }
-
-                    if (matchByName != null) {
-                        val parentName = dir.parentFile?.name ?: ""
-                        val prefix = if (dir.absolutePath.contains("Android/data") || scanCacheOnly) "[Кэш: $parentName]" else "[Память]"
-                        val fileType = file.extension.uppercase(Locale.getDefault()).ifEmpty { "FILE" }
-                        
-                        val bytes = file.length()
-                        val fileSize = if (bytes >= 1024 * 1024) "${bytes / (1024 * 1024)} МБ" else "${bytes / 1024} КБ"
-
-                        runOnUiThread {
-                            val tvFileItem = TextView(this@MainActivity).apply {
-                                text = "$prefix Найдено ($matchByName)\n📄 Тип: .$fileType | ⚖️ Вес: $fileSize\n📍 Путь: ${file.absolutePath}\n"
-                                textSize = 13f
-                                setTextColor(Color.parseColor("#00FF66"))
-                                setPadding(20, 20, 20, 20)
-
-                                
