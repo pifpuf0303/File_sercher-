@@ -18,10 +18,16 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    - name: Build Application APK
-      run: |
-        chmod +x gradlew
-        ./gradlew assembleDebug --no-daemon
+    # Скачиваем и настраиваем Gradle 8.5 напрямую в систему сервера в обход репозитория!
+    - name: Setup Gradle 8.5
+      uses: gradle/actions/setup-gradle@v4
+      with:
+        gradle-version: '8.5'
+        cache-disabled: true # ЖЕСТКО ОТКЛЮЧАЕМ КЭШ, чтобы сервер не подсовывал старые пропуски!
+
+    # Собираем APK-файл глобальной системной командой 'gradle' вместо сломанного './gradlew'
+    - name: Build with Gradle
+      run: gradle assembleDebug --no-daemon
 
     - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
