@@ -10,18 +10,15 @@ jobs:
     runs-on: ubuntu-24.04
 
     steps:
-    # Обновлено до актуальной версии v4
     - uses: actions/checkout@v4
 
-    # Настраиваем JDK напрямую без устаревших предупреждений
     - name: Set up Java Development Kit
       uses: actions/setup-java@v4
       with:
         java-version: '17'
         distribution: 'temurin'
 
-    # Принудительно генерируем чистую структуру и весь код приложения
-    - name: Force Rebuild Clean Project Structure v10
+    - name: Force Rebuild Clean Project Structure v11
       run: |
         rm -rf app settings.gradle build.gradle
         
@@ -270,4 +267,6 @@ jobs:
             private fun searchFiles(dir: File, targets: List<String>, scanCacheOnly: Boolean) {
                 val files = dir.listFiles() ?: return
                 checkedDirsCount++
-                
+                if (checkedDirsCount % 100 == 0) {
+                    runOnUiThread {
+                    
