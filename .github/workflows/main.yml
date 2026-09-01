@@ -18,7 +18,13 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    # Этот шаг гарантирует, что на сервере будет ровно ОДИН правильный манифест без дубликатов!
+    # Принудительно ставим стабильный Gradle 8.5, который понимает наши плагины
+    - name: Setup Gradle 8.5
+      uses: gradle/actions/setup-gradle@v4
+      with:
+        gradle-version: '8.5'
+        cache-disabled: true
+
     - name: Force Overwrite Clean Android Manifest
       run: |
         rm -rf app/src/main/AndroidManifest.xml AndroidManifest.xml
