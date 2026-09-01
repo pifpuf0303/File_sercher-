@@ -39,6 +39,12 @@ class MainActivity : Activity() {
     private val defaultTargetNames = listOf("libil2cpp.so", "Yandere.zip", "R4x", "Viento", "Spoof_lios")
     private var checkedDirsCount = 0
 
+    // Временный список для хранения результатов перед их сортировкой
+    private val foundFilesList = mutableListOf<FileResult>()
+
+    // Класс для удобного сохранения данных о найденном файле
+    data class FileResult(val file: File, val matchName: String, val isCache: Boolean)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -155,6 +161,7 @@ class MainActivity : Activity() {
 
     private fun runSearch() {
         llResultsContainer.removeAllViews()
+        foundFilesList.clear() // Полностью очищаем старый список перед поиском
         checkedDirsCount = 0
         
         val query = etSearchInput.text.toString().trim()
@@ -167,26 +174,35 @@ class MainActivity : Activity() {
             val rootDir = Environment.getExternalStorageDirectory()
 
             if (cbSearchStorage.isChecked) {
-                searchFiles(rootDir, currentTargets, false)
+                collectFiles(rootDir, currentTargets, false)
             }
 
             if (cbSearchCache.isChecked) {
                 val androidDataDir = File(rootDir, "Android/data")
                 if (androidDataDir.exists() && androidDataDir.isDirectory) {
-                    searchFiles(androidDataDir, currentTargets, true)
+                    collectFiles(androidDataDir, currentTargets, true)
                 }
             }
 
+            // ИСПРАВЛЕНО: Сортируем собранные файлы по размеру (от самого большого к меньшему)
+            foundFilesList.sortByDescending { it.file.length() }
+
+            // Отображаем уже отсортированные файлы на экране телефона
             runOnUiThread {
+                for (item in foundFilesList) {
+                    displayFileItem(item.file, item.matchName, item.isCache)
+                }
+                
                 btnScan.isEnabled = true
                 progressBar.visibility = View.GONE
-                tvStatus.text = "Успешно! Найдено совпадений: ${llResultsContainer.childCount}\nПроверено директорий: $checkedDirsCount"
+                tvStatus.text = "Успешно! Найдено совпадений: ${foundFilesList.size}\nПроверено директорий: $checkedDirsCount"
                 Toast.makeText(this@MainActivity, "Поиск завершён!", Toast.LENGTH_SHORT).show()
             }
         }
     }
 
-    private fun searchFiles(dir: File, targets: List<String>, scanCacheOnly: Boolean) {
+    // Сканирует папки и просто добавляет файлы во временный список
+    private fun collectFiles(dir: File, targets: List<String>, scanCacheOnly: Boolean) {
         val files = dir.listFiles() ?: return
         checkedDirsCount++
         if (checkedDirsCount % 100 == 0) {
@@ -199,61 +215,57 @@ class MainActivity : Activity() {
             val matchByName = targets.firstOrNull { target -> file.name.contains(target, ignoreCase = true) }
 
             if (matchByName != null) {
-                val parentName = dir.parentFile?.name ?: ""
-                val prefix = if (dir.absolutePath.contains("Android/data") || scanCacheOnly) "[Кэш: $parentName]" else "[Память]"
-                val fileType = file.extension.uppercase(Locale.getDefault()).ifEmpty { "FILE" }
-                
-                val bytes = file.length()
-                val fileSize = if (bytes >= 1024 * 1024) "${bytes / (1024 * 1024)} МБ" else "${bytes / 1024} КБ"
-
-                runOnUiThread {
-                    val tvFileItem = TextView(this@MainActivity).apply {
-                        text = "$prefix Найдено ($matchByName)\n📄 Тип: .$fileType | ⚖️ Вес: $fileSize\n📍 Путь: ${file.absolutePath}\n"
-                        textSize = 13f
-                        setTextColor(Color.parseColor("#00FF66"))
-                        setPadding(20, 20, 20, 20)
-                        
-                        val itemShape = GradientDrawable().apply {
-                            setColor(Color.parseColor("#1A1A1E"))
-                            cornerRadius = 12f
-                            setStroke(1, Color.parseColor("#2C2C35"))
-                        }
-                        background = itemShape
-                    }
-
-                    val params = LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.MATCH_PARENT,
-                        LinearLayout.LayoutParams.WRAP_CONTENT
-                    ).apply { setMargins(0, 0, 0, 16) }
-                    tvFileItem.layoutParams = params
-
-                    tvFileItem.setOnClickListener { openFolderDirectly(file) }
-                    llResultsContainer.addView(tvFileItem)
-                }
+                foundFilesList.add(FileResult(file, matchByName, scanCacheOnly || dir.absolutePath.contains("Android/data")))
             }
             
             if (file.isDirectory && !file.name.startsWith(".")) {
                 if (!scanCacheOnly && file.name.equals("Android", ignoreCase = true)) {
                     continue
                 }
-                searchFiles(file, targets, scanCacheOnly)
+                collectFiles(file, targets, scanCacheOnly)
             }
         }
+    }
+
+    // Создает визуальный красивый элемент интерфейса для конкретного файла
+    private fun displayFileItem(file: File, matchByName: String, isCache: Boolean) {
+        val parentName = file.parentFile?.name ?: ""
+        val prefix = if (isCache) "[Кэш: $parentName]" else "[Память]"
+        val fileType = file.extension.uppercase(Locale.getDefault()).ifEmpty { "FILE" }
+        
+        val bytes = file.length()
+        val fileSize = if (bytes >= 1024 * 1024) "${bytes / (1024 * 1024)} МБ" else "${bytes / 1024} КБ"
+
+        val tvFileItem = TextView(this@MainActivity).apply {
+            text = "$prefix Найдено ($matchByName)\n📄 Тип: .$fileType | ⚖️ Вес: $fileSize\n📍 Путь: ${file.absolutePath}\n"
+            textSize = 13f
+            setTextColor(Color.parseColor("#00FF66"))
+            setPadding(20, 20, 20, 20)
+            
+            val itemShape = GradientDrawable().apply {
+                setColor(Color.parseColor("#1A1A1E"))
+                cornerRadius = 12f
+                setStroke(1, Color.parseColor("#2C2C35"))
+            }
+            background = itemShape
+        }
+
+        val params = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        ).apply { setMargins(0, 0, 0, 16) }
+        tvFileItem.layoutParams = params
+
+        tvFileItem.setOnClickListener { openFolderDirectly(file) }
+        llResultsContainer.addView(tvFileItem)
     }
 
     private fun openFolderDirectly(file: File) {
         try {
             val folder = file.parentFile ?: return
-            val relativePath = folder.absolutePath.replace("${Environment.getExternalStorageDirectory().absolutePath}/", "").replace(Environment.getExternalStorageDirectory().absolutePath, "")
+            val relativePath = folder.absolutePath
+                .replace("${Environment.getExternalStorageDirectory().absolutePath}/", "")
+                .replace(Environment.getExternalStorageDirectory().absolutePath, "")
+
             val authority = "com.android.externalstorage.documents"
-            val documentId = if (relativePath.isEmpty()) "primary:" else "primary:$relativePath"
-            val uri = DocumentsContract.buildDocumentUri(authority, documentId)
-            val intent = Intent(Intent.ACTION_VIEW).apply {
-                setDataAndType(uri, "vnd.android.document/directory")
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }
-            startActivity(intent)
-        } catch (e: Exception) {
-            try {
-                val fallbackUri = Uri.parse("content://com.android.externalstorage.documents/document/primary:" + file.parentFile.absolutePath.replace("${Environment.getExternalStorageDirectory().absolutePath}/", ""))
-                
+            
