@@ -18,8 +18,39 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    # Запускаем компиляцию глобальной командой 'gradle' без использования плагина setup-gradle
-    - name: Build Application APK
+    # Этот шаг гарантирует, что на сервере будет ровно ОДИН правильный манифест без дубликатов!
+    - name: Force Overwrite Clean Android Manifest
+      run: |
+        rm -rf app/src/main/AndroidManifest.xml AndroidManifest.xml
+        mkdir -p app/src/main
+        cat << 'EOF' > app/src/main/AndroidManifest.xml
+        <?xml version="1.0" encoding="utf-8"?>
+        <manifest xmlns:android="http://android.com"
+            package="com.example.filesercher">
+
+            <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
+            <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+            <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"/>
+
+            <application
+                android:allowBackup="true"
+                android:icon="@android:drawable/ic_menu_search"
+                android:label="File Searcher"
+                android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
+                
+                <activity
+                    android:name=".MainActivity"
+                    android:exported="true">
+                    <intent-filter>
+                        <action android:name="android.intent.action.MAIN" />
+                        <category android:name="android.intent.category.LAUNCHER" />
+                    </intent-filter>
+                </activity>
+            </application>
+        </manifest>
+        EOF
+
+    - name: Clean and Build with Gradle
       run: gradle clean assembleDebug --no-daemon
 
     - name: Upload APK Artifact
