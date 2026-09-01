@@ -18,11 +18,17 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    # Робот сам полностью затрёт все конфликтующие файлы настроек и манифестов перед компиляцией!
+    # Этот официальный инструмент жестко отключает сетевой кэш сервера!
+    - name: Setup Gradle 8.5
+      uses: gradle/actions/setup-gradle@v4
+      with:
+        gradle-version: '8.5'
+        cache-disabled: true
+
+    # Стираем старый мусор репозитория и создаем идеальную структуру
     - name: Force Overwrite Valid Manifest
       run: |
         rm -rf app/src/main/AndroidManifest.xml AndroidManifest.xml app/build.gradle build.gradle settings.gradle
-        
         echo "include ':app'" > settings.gradle
         
         cat << 'EOF' > build.gradle
@@ -49,7 +55,7 @@ jobs:
         EOF
         
         mkdir -p app/src/main
-        echo '<?xml version="1.0" encoding="utf-8"?><manifest xmlns:android="http://android.com" package="com.example.filesercher"><application android:allowBackup="true" android:icon="@android:drawable/ic_menu_search" android:label="File Searcher" android:theme="@android:style/Theme.DeviceDefault.NoActionBar"><activity android:name="com.example.filesercher.MainActivity" android:exported="true"><intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter></activity></application></manifest>' > app/src/main/AndroidManifest.xml
+        echo '<?xml version="1.0" encoding="utf-8"?><manifest xmlns:android="http://android.com" package="com.example.filesercher"><application android:allowBackup="true" android:icon="@android:drawable/ic_menu_search" android:label="File Searcher" android:theme="@android:style/Theme.DeviceDefault.NoActionBar"><activity android:name=".MainActivity" android:exported="true"><intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter></activity></application></manifest>' > app/src/main/AndroidManifest.xml
 
     - name: Build Application APK
       run: gradle clean assembleDebug --no-daemon
