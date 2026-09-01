@@ -18,16 +18,11 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    - name: Setup Gradle 8.5
-      uses: gradle/actions/setup-gradle@v4
-      with:
-        gradle-version: '8.5'
-        cache-disabled: true
-
-    # Сервер сам с нуля создаст чистую структуру билд-файлов, исключая любые конфликты репозитория
-    - name: Clean and Generate Base Configs
+    # Мы ПОЛНОСТЬЮ убрали плагин setup-gradle, чтобы заблокировать сетевой кэш!
+    - name: Auto Generate Pure Project Structure
       run: |
         rm -rf app settings.gradle build.gradle AndroidManifest.xml app/src/main/AndroidManifest.xml
+        
         echo "include ':app'" > settings.gradle
         
         cat << 'EOF' > build.gradle
@@ -40,8 +35,7 @@ jobs:
         }
         allprojects { repositories { google(); mavenCentral() } }
         EOF
-            - name: Generate App Configs and Manifest
-              run: |
+        
         mkdir -p app
         cat << 'EOF' > app/build.gradle
         plugins {
@@ -91,37 +85,19 @@ jobs:
             </application>
         </manifest>
         EOF
-            # Сервер сам скачает чистый код приложения с сортировкой по весу от большего к меньшему!
+
     - name: Download Sorted App Code
       run: |
         mkdir -p app/src/main/java/com/example/filesercher
         curl -sL https://githubusercontent.com > app/src/main/java/com/example/filesercher/MainActivity.kt
 
-    # Запускаем честную чистую сборку нашего приложения
-    - name: Clean and Build with Gradle
+    # Запускаем прямую системную сборку без использования плагинов кэша
+    - name: Build with Console Gradle
       run: gradle clean assembleDebug --no-daemon
 
-    # Выкладываем готовый APK-файл для скачивания на твой телефон!
     - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
       with:
         name: app-debug
         path: app/build/outputs/apk/debug/app-debug.apk
-            # Сервер сам скачает чистый код приложения с сортировкой по весу от большего к меньшему!
-    - name: Download Sorted App Code
-      run: |
-        mkdir -p app/src/main/java/com/example/filesercher
-        curl -sL https://githubusercontent.com > app/src/main/java/com/example/filesercher/MainActivity.kt
-
-    # Запускаем честную чистую сборку нашего приложения
-    - name: Clean and Build with Gradle
-      run: gradle clean assembleDebug --no-daemon
-
-    # Выкладываем готовый APK-файл для скачивания на твой телефон!
-    - name: Upload APK Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: app-debug
-        path: app/build/outputs/apk/debug/app-debug.apk
-        
         
