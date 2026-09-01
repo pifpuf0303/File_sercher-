@@ -17,13 +17,16 @@ jobs:
       with:
         java-version: '17'
         distribution: 'temurin'
-        cache: gradle
 
-    - name: Grant execute permission for gradlew
-      run: chmod +x gradlew
-
-    - name: Force Clean Build Cache v7
+    - name: Force Rebuild Clean Project Structure
       run: |
+        # Полностью удаляем старую запутавшуюся структуру, если она есть
+        rm -rf app/src/main/java
+        
+        # Создаем гарантированно правильную цепочку папок с чистого листа
+        mkdir -p app/src/main/java/com/example/filesercher
+        
+        # Записываем чистый рабочий код приложения с тегами, весом и переходом в папки
         cat << 'EOF' > app/src/main/java/com/example/filesercher/MainActivity.kt
         package com.example.filesercher
 
@@ -189,7 +192,6 @@ jobs:
 
                 btnScan.isEnabled = false
                 progressBar.visibility = View.VISIBLE
-                tvStatus.text = "Подготовка поискового движка..."
 
                 thread {
                     val rootDir = Environment.getExternalStorageDirectory()
@@ -240,7 +242,4 @@ jobs:
                                 text = "$prefix Найдено ($matchByName)\n📄 Тип: .$fileType | ⚖️ Вес: $fileSize\n📍 Путь: ${file.absolutePath}\n"
                                 textSize = 13f
                                 setTextColor(Color.parseColor("#00FF66"))
-                                setPadding(20, 20, 20, 20)
-                                
-                                val itemShape = GradientDrawable().apply {
                                 
