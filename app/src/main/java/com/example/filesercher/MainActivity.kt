@@ -39,14 +39,6 @@ class MainActivity : Activity() {
     private val defaultTargetNames = listOf("libil2cpp.so", "Yandere.zip", "R4x", "Viento", "Spoof_lios")
     private var checkedDirsCount = 0
 
-    // ПЕРЕДВИГАЕМ ФУНКЦИЮ НАВЕРХ: теперь она объявлена первой и компилятор её не потеряет
-    private fun formatFileSize(sizeInBytes: Long): String {
-        if (sizeInBytes <= 0) return "0 Б"
-        val units = arrayOf("Б", "КБ", "МБ", "ГБ", "ТБ")
-        val digitGroups = (Math.log10(sizeInBytes.toDouble()) / Math.log10(1024.0)).toInt()
-        return String.format(Locale.getDefault(), "%.2f %s", sizeInBytes / Math.pow(1024.0, digitGroups.toDouble()), units[digitGroups])
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -170,7 +162,6 @@ class MainActivity : Activity() {
 
         btnScan.isEnabled = false
         progressBar.visibility = View.VISIBLE
-        tvStatus.text = "Подготовка поискового движка..."
 
         thread {
             val rootDir = Environment.getExternalStorageDirectory()
@@ -189,7 +180,7 @@ class MainActivity : Activity() {
             runOnUiThread {
                 btnScan.isEnabled = true
                 progressBar.visibility = View.GONE
-                tvStatus.text = "Успешно! Найдено совпадений: ${llResultsContainer.childCount}\nПроверено директорий: $checkedDirsCount"
+                tvStatus.text = "Успешно! Найдено совпадений: ${llResultsContainer.childCount}"
                 Toast.makeText(this@MainActivity, "Поиск завершён!", Toast.LENGTH_SHORT).show()
             }
         }
@@ -212,11 +203,10 @@ class MainActivity : Activity() {
                 val parentName = dir.parentFile?.name ?: ""
                 val prefix = if (dir.absolutePath.contains("Android/data") || scanCacheOnly) "[Кэш: $parentName]" else "[Память]"
                 val fileType = file.extension.uppercase(Locale.getDefault()).ifEmpty { "FILE" }
-                val fileSize = formatFileSize(file.length())
 
                 runOnUiThread {
                     val tvFileItem = TextView(this@MainActivity).apply {
-                        text = "$prefix Найдено ($matchByName)\n📄 Тип: .$fileType | ⚖️ Вес: $fileSize\n📍 Путь: ${file.absolutePath}\n"
+                        text = "$prefix Найдено ($matchByName)\n📄 Тип: .$fileType\n📍 Путь: ${file.absolutePath}\n"
                         textSize = 13f
                         setTextColor(Color.parseColor("#00FF66"))
                         setPadding(20, 20, 20, 20)
@@ -261,4 +251,16 @@ class MainActivity : Activity() {
             val uri = DocumentsContract.buildDocumentUri(authority, documentId)
 
             val intent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(uri, "vnd.android.document/directory")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            startActivity(intent)
+        } catch (e: Exception) {
+            try {
+                val fallbackUri = Uri.parse("content://com.android.externalstorage.documents/document/primary:" + 
+                    file.parentFile.absolutePath.replace("${Environment.getExternalStorageDirectory().absolutePath}/", ""))
+                val fallbackIntent = Intent(Intent.ACTION_VIEW).apply {
+                    setDataAndType(fallbackUri, "*/*")
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
                 
