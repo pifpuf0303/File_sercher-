@@ -1,13 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="&#104;&#116;&#116;&#112;&#58;&#47;&#47;&#115;&#99;&#104;&#101;&#109;&#97;&#115;&#46;&#97;&#110;&#100;&#114;&#111;&#105;&#100;&#46;&#99;&#111;&#109;&#47;&#97;&#112;&#107;&#47;&#114;&#101;&#115;&#47;&#97;&#110;&#100;&#114;&#111;&#105;&#100;">
+<manifest xmlns:android="http://android.com"
+    package="com.example.filesercher">
 
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"/>
 
     <application
         android:allowBackup="true"
-        android:label="Files ME ᴘʀᴏᴊᴇᴄᴛ"
-        android:supportsRtl="true">
+        android:icon="@android:drawable/ic_menu_search"
+        android:label="File Searcher"
+        android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
         
         <activity
             android:name=".MainActivity"
