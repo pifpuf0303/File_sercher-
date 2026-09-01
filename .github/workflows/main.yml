@@ -18,10 +18,12 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    - name: Install Pure Gradle
+    # Скачиваем и настраиваем правильную, современную версию Gradle 8.5
+    - name: Install Correct Gradle 8.5
       run: |
-        sudo apt-get update
-        sudo apt-get install -y gradle
+        wget -q https://gradle.org
+        sudo unzip -q gradle-8.5-bin.zip -d /opt
+        echo "/opt/gradle-8.5/bin" >> $GITHUB_PATH
 
     - name: Build with Gradle
       run: gradle assembleDebug --no-daemon
