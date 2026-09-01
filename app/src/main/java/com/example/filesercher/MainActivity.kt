@@ -14,7 +14,9 @@ import android.provider.Settings
 import android.view.Gravity
 import android.view.View
 import android.widget.Button
+import android.widget.CheckBox
 import android.widget.EditText
+import android.widget.HorizontalScrollView
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.ScrollView
@@ -32,6 +34,10 @@ class MainActivity : Activity() {
     private lateinit var tvStatus: TextView
     private lateinit var progressBar: ProgressBar
     
+    // Переключатели области поиска
+    private lateinit var cbSearchStorage: CheckBox
+    private lateinit var cbSearchCache: CheckBox
+    
     private val defaultTargetNames = listOf("libil2cpp.so", "Yandere.zip", "R4x", "Viento", "Spoof_lios")
     private var checkedDirsCount = 0
 
@@ -44,16 +50,18 @@ class MainActivity : Activity() {
             setPadding(32, 32, 32, 32)
         }
 
+        // 1. Красивый золотой заголовок ME PROJECT
         val tvTitle = TextView(this).apply {
             text = "ME PROJECT : SEARCHER"
             textSize = 20f
             setTextColor(Color.parseColor("#FFD700"))
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
             gravity = Gravity.CENTER
-            setPadding(0, 10, 0, 30)
+            setPadding(0, 10, 0, 20)
         }
         mainLayout.addView(tvTitle)
 
+        // 2. Поле ввода
         etSearchInput = EditText(this).apply {
             hint = "Введите имя файла для поиска..."
             setHintTextColor(Color.parseColor("#666666"))
@@ -62,16 +70,63 @@ class MainActivity : Activity() {
         }
         mainLayout.addView(etSearchInput)
 
+        // 3. Горизонтальная лента быстрых тегов
+        val tagsLayout = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(0, 10, 0, 10)
+        }
+        val tags = listOf(".zip", ".so", ".apk", "Telegram")
+        for (tag in tags) {
+            val btnTag = Button(this).apply {
+                text = tag
+                textSize = 12f
+                // Устанавливаем небольшие отступы для кнопок-тегов
+                val params = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply { setMargins(0, 0, 10, 0) }
+                layoutParams = params
+                setOnClickListener {
+                    etSearchInput.setText(tag)
+                    etSearchInput.setSelection(tag.length) // Переносим курсор в конец текста
+                }
+            }
+            tagsLayout.addView(btnTag)
+        }
+        val scrollTags = HorizontalScrollView(this).apply {
+            isHorizontalScrollBarEnabled = false
+        }
+        scrollTags.addView(tagsLayout)
+        mainLayout.addView(scrollTags)
+
+        // 4. Фильтры области поиска (Чекбоксы)
+        cbSearchStorage = CheckBox(this).apply {
+            text = "Искать в общей памяти"
+            setTextColor(Color.WHITE)
+            isChecked = true
+        }
+        mainLayout.addView(cbSearchStorage)
+
+        cbSearchCache = CheckBox(this).apply {
+            text = "Искать в кэше (Android/data)"
+            setTextColor(Color.WHITE)
+            isChecked = true
+        }
+        mainLayout.addView(cbSearchCache)
+
+        // 5. Наша классическая надежная кнопка сканирования
         btnScan = Button(this).apply {
-            text = "ГЛУБОКИЙ ПОИСК ВЕЗДЕ"
+            text = "ГЛУБОКИЙ ПОИСК"
         }
         mainLayout.addView(btnScan)
 
+        // Индикатор прогресса
         progressBar = ProgressBar(this).apply {
             visibility = View.GONE
         }
         mainLayout.addView(progressBar)
 
+        // Статус процесса
         tvStatus = TextView(this).apply {
             text = "Приложение готово к работе"
             textSize = 14f
@@ -80,6 +135,7 @@ class MainActivity : Activity() {
         }
         mainLayout.addView(tvStatus)
 
+        // Область прокрутки результатов
         val scrollView = ScrollView(this)
         llResultsContainer = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -90,10 +146,15 @@ class MainActivity : Activity() {
         setContentView(mainLayout)
 
         btnScan.setOnClickListener {
-            if (hasAllFilesPermission()) {
-                runSearch()
+            // Проверяем, выбран ли хоть один фильтр перед поиском
+            if (!cbSearchStorage.isChecked && !cbSearchCache.isChecked) {
+                Toast.makeText(this, "Выберите хотя бы одну область поиска!", Toast.LENGTH_SHORT).show()
             } else {
-                requestAllFilesPermission()
+                if (hasAllFilesPermission()) {
+                    runSearch()
+                } else {
+                    requestAllFilesPermission()
+                }
             }
         }
     }
@@ -117,26 +178,34 @@ class MainActivity : Activity() {
 
         btnScan.isEnabled = false
         progressBar.visibility = View.VISIBLE
+        tvStatus.text = "Подготовка поискового движка..."
 
         thread {
             val rootDir = Environment.getExternalStorageDirectory()
-            searchFiles(rootDir, currentTargets)
 
-            val androidDataDir = File(rootDir, "Android/data")
-            if (androidDataDir.exists() && androidDataDir.isDirectory) {
-                searchFiles(androidDataDir, currentTargets)
+            // 1. Сканируем общую память, если чекбокс включен
+            if (cbSearchStorage.isChecked) {
+                searchFiles(rootDir, currentTargets, scanCacheOnly = false)
+            }
+
+            // 2. Сканируем скрытый кэш Android/data, если чекбокс включен
+            if (cbSearchCache.isChecked) {
+                val androidDataDir = File(rootDir, "Android/data")
+                if (androidDataDir.exists() && androidDataDir.isDirectory) {
+                    searchFiles(androidDataDir, currentTargets, scanCacheOnly = true)
+                }
             }
 
             runOnUiThread {
                 btnScan.isEnabled = true
                 progressBar.visibility = View.GONE
-                tvStatus.text = "Успешно! Найдено совпадений: ${llResultsContainer.childCount}"
+                tvStatus.text = "Успешно! Найдено совпадений: ${llResultsContainer.childCount}\nПроверено директорий: $checkedDirsCount"
                 Toast.makeText(this@MainActivity, "Поиск завершён!", Toast.LENGTH_SHORT).show()
             }
         }
     }
 
-    private fun searchFiles(dir: File, targets: List<String>) {
+    private fun searchFiles(dir: File, targets: List<String>, scanCacheOnly: Boolean) {
         val files = dir.listFiles() ?: return
         checkedDirsCount++
         
@@ -151,10 +220,8 @@ class MainActivity : Activity() {
 
             if (matchByName != null) {
                 val parentName = dir.parentFile?.name ?: ""
-                val prefix = if (dir.absolutePath.contains("Android/data")) "[Кэш: $parentName]" else "[Память]"
+                val prefix = if (dir.absolutePath.contains("Android/data") || scanCacheOnly) "[Кэш: $parentName]" else "[Память]"
                 val fileType = file.extension.uppercase(Locale.getDefault()).ifEmpty { "FILE" }
-                
-                // Снова вычисляем вес файла в КБ, МБ или ГБ
                 val fileSize = formatFileSize(file.length())
 
                 runOnUiThread {
@@ -184,47 +251,14 @@ class MainActivity : Activity() {
             }
             
             if (file.isDirectory && !file.name.startsWith(".")) {
-                searchFiles(file, targets)
-            }
-        }
-    }
-
-    private fun openFolderDirectly(file: File) {
-        try {
-            val folder = file.parentFile ?: return
-            val relativePath = folder.absolutePath
-                .replace("${Environment.getExternalStorageDirectory().absolutePath}/", "")
-                .replace(Environment.getExternalStorageDirectory().absolutePath, "")
-
-            val authority = "com.android.externalstorage.documents"
-            val documentId = if (relativePath.isEmpty()) "primary:" else "primary:$relativePath"
-            val uri = DocumentsContract.buildDocumentUri(authority, documentId)
-
-            val intent = Intent(Intent.ACTION_VIEW).apply {
-                setDataAndType(uri, "vnd.android.document/directory")
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }
-            startActivity(intent)
-        } catch (e: Exception) {
-            try {
-                val fallbackUri = Uri.parse("content://com.android.externalstorage.documents/document/primary:" + 
-                    file.parentFile.absolutePath.replace("${Environment.getExternalStorageDirectory().absolutePath}/", ""))
-                val fallbackIntent = Intent(Intent.ACTION_VIEW).apply {
-                    setDataAndType(fallbackUri, "*/*")
-                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                // Если мы сканируем общую память, то принудительно пропускаем Android/data, 
+                // так как для неё у нас есть выделенный второй чекбокс (чтобы папки не дублировались)
+                if (!scanCacheOnly && file.name.equals("Android", ignoreCase = true)) {
+                    continue
                 }
-                startActivity(fallbackIntent)
-            } catch (ex: Exception) {
-                Toast.makeText(this, "Ошибка перехода в папку.", Toast.LENGTH_SHORT).show()
+                searchFiles(file, targets, scanCacheOnly)
             }
         }
     }
 
-    // Возвращаем функцию перевода байт в читаемый размер
-    private fun formatFileSize(sizeInBytes: Long): String {
-        if (sizeInBytes <= 0) return "0 Б"
-        val units = arrayOf("Б", "КБ", "МБ", "ГБ", "ТБ")
-        val digitGroups = (Math.log10(sizeInBytes.toDouble()) / Math.log10(1024.0)).toInt()
-        return String.format(Locale.getDefault(), "%.2f %s", sizeInBytes / Math.pow(1024.0, digitGroups.toDouble()), units[digitGroups])
-    }
-}
+    
