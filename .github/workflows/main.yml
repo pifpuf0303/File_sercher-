@@ -23,7 +23,7 @@ jobs:
       with:
         gradle-version: '8.5'
 
-    # Принудительно создаем файл с кодом приложения прямо перед сборкой
+    # Принудительно создаем файл с кодом приложения прямо перед сборкой 1
     - name: Force Generate App Code
       run: |
         mkdir -p app/src/main/java/com/example/filesercher
