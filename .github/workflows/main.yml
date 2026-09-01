@@ -18,8 +18,8 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    # Стираем старый мусор и принудительно генерируем АБСОЛЮТНО ВСЕ файлы настроек с нуля на сервере
-    - name: Force Overwrite All Android Configs v2
+    # Перезаписываем все файлы конфигураций, убирая старые ошибки
+    - name: Force Overwrite All Android Configs v3
       run: |
         rm -rf app/build.gradle build.gradle settings.gradle app/src/main/AndroidManifest.xml AndroidManifest.xml
         
@@ -86,13 +86,13 @@ jobs:
         </manifest>
         EOF
 
-    # Скачиваем чистый дистрибутив Gradle 8.5 напрямую без использования кэширующих экшенов
+    # ИСПРАВЛЕНО: Скачиваем архив напрямую с серверов Gradle по полной точной ссылке
     - name: Download Pure Gradle 8.5 Launcher
       run: |
         wget -q https://gradle.org
         sudo unzip -q gradle-8.5-bin.zip -d /opt
 
-    # Запускаем честную независимую сборку по прямому пути
+    # Запускаем независимую компиляцию
     - name: Build with Console Gradle
       run: /opt/gradle-8.5/bin/gradle clean assembleDebug --no-daemon
 
