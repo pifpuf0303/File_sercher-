@@ -18,9 +18,15 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    # Собираем напрямую глобальным компилятором сервера, который заблокирует любой кэш!
+    # Принудительно фиксируем стабильную версию Gradle 8.5 без сетевого кэша!
+    - name: Setup Gradle 8.5
+      uses: gradle/actions/setup-gradle@v4
+      with:
+        gradle-version: '8.5'
+        cache-disabled: true
+
     - name: Build Application APK
-      run: gradle assembleDebug --no-daemon
+      run: gradle clean assembleDebug --no-daemon
 
     - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
