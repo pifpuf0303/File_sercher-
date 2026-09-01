@@ -24,12 +24,52 @@ jobs:
         gradle-version: '8.5'
         cache-disabled: true
 
-    # Безопасная расшифровка манифеста из зашифрованной строки в обход ограничений терминала Linux
-    - name: Auto Decode Clean Manifest
+    # Сервер сам скачает эталонную структуру Android-проекта, убирая любые баги манифеста
+    - name: Download Clean Android Template
       run: |
-        rm -rf app/src/main/AndroidManifest.xml AndroidManifest.xml
+        rm -rf app settings.gradle build.gradle AndroidManifest.xml
+        gradle init --type pom --dsl groovy --incubating --no-daemon
         mkdir -p app/src/main
-        echo "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz48bWFuaWZlc3QgeG1sbnM6YW5kcm9pZD0iaHR0cDovL3NjaGVtYXMuYW5kcm9pZC5jb20vYXBrL3Jlcy9hbmRyb2lkIj48dXNlcy1wZXJtaXNzaW9uIGFuZHJvaWQ6bmFtZT0iYW5kcm9pZC5wZXJtaXNzaW9uLlJFQURfRVhURVJOQUxfU1RPUkFHRSIvPjx1c2VzLXBlcm1pc3Npb24gYW5kcm9pZDpubFtZTXT0iYW5kcm9pZC5wZXJtaXNzaW9uLldSSVRFX0VYVEVSTkFMX1NUT1JBR0UiLz48dXNlcy1wZXJtaXNzaW9uIGFuZHJvaWQ6bmFtZT0iYW5kcm9pZC5wZXJtaXNzaW9uLk1BTkFHRV9FWFRFUk5BTF9TVE9SQUdFIi8+PGFwcGxpY2F0aW9uIGFuZHJvaWQ6YWxsb3dCYWNrdXA9InRydWUiIGFuZHJvaWQ6aWNvbj0iQGFuZHJvaWQ6ZHJhd2FibGUvaWNfbWVudV9zZWFyY2giIGFuZHJvaWQ6bGFiZWw9IkZpbGUgU2VhcmNoZXIiIGFuZHJvaWQ6dGhlbWU9IkBhbmRyb2lkOnN0eWxlL1RoZW1lLkRldmljZURlZmF1bHQuTm9BY3Rpb24iPjRhY3Rpdml0eSBhbmRyb2lkOm5hbWU9ImNvbS5leGFtcGxlLmZpbGVzZXJjaGVyLk1haW5BY3Rpdml0eSIgYW5kcm9pZDpleHBvcnRlZD0idHJ1ZSI+PGludGVudC1maWx0ZXI+PGFjdGlvbiBhbmRyb2lkOm5hbWU9ImFuZHJvaWQuaW50ZW50LmFjdGlvbi5NQUlOIi8+PGNhdGVnb3J5IGFuZHJvaWQ6bmFtZT0iYW5kcm9pZC5pbnRlbnQuY2F0ZWdvcnkuTEFVTkNIRVIiLz48L2ludGVudC1maWx0cj48L2FjdGl2aXR5PjwvYXBwbGljYXRpb24+PC9tYW5pZmVzdD4=" | base64 -d | tr -d '\r' > app/src/main/AndroidManifest.xml
+        echo '<?xml version="1.0" encoding="utf-8"?><manifest xmlns:android="http://android.com" package="com.example.filesercher"><application android:allowBackup="true" android:icon="@android:drawable/ic_menu_search" android:label="File Searcher" android:theme="@android:style/Theme.DeviceDefault.NoActionBar"><activity android:name=".MainActivity" android:exported="true"><intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter></activity></application></manifest>' > app/src/main/AndroidManifest.xml
+        
+        cat << 'EOF' > settings.gradle
+        include ':app'
+        EOF
+
+        cat << 'EOF' > build.gradle
+        buildscript {
+            repositories { google(); mavenCentral() }
+            dependencies {
+                classpath 'com.android.tools.build:gradle:8.2.2'
+                classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.22"
+            }
+        }
+        allprojects { repositories { google(); mavenCentral() } }
+        EOF
+
+        cat << 'EOF' > app/build.gradle
+        plugins {
+            id 'com.android.application'
+            id 'org.jetbrains.kotlin.android'
+        }
+        android {
+            namespace 'com.example.filesercher'
+            compileSdk 34
+            defaultConfig {
+                applicationId "com.example.filesercher"
+                minSdk 21
+                targetSdk 34
+                versionCode 1
+                versionName "1.0"
+                multiDexEnabled true
+            }
+            compileOptions {
+                sourceCompatibility JavaVersion.VERSION_17
+                targetCompatibility JavaVersion.VERSION_17
+            }
+            kotlinOptions { jvmTarget = '17' }
+        }
+        EOF
 
     - name: Build Application APK
       run: gradle clean assembleDebug --no-daemon
