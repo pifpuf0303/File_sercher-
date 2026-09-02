@@ -21,6 +21,8 @@ import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import java.io.File
+import java.io.FileInputStream
+import java.io.FileOutputStream
 import java.util.Locale
 import kotlin.concurrent.thread
 
@@ -40,7 +42,6 @@ class MainActivity : Activity() {
     private var checkedDirsCount = 0
     private val foundFilesList = mutableListOf<FileResult>()
 
-    // Константы пакетов для прямого чтения
     private val targetGamePackage = "com.herogame.gplay.lastdayrulessurvival"
     private val targetTelegramPackage = "org.telegram.messenger"
 
@@ -135,31 +136,18 @@ class MainActivity : Activity() {
         thread {
             val rootDir = Environment.getExternalStorageDirectory()
             
-            // 1. Поиск в общей памяти
-            if (cbSearchStorage.isChecked) { 
-                collectFiles(rootDir, currentTargets, "[Память]") 
-            }
+            if (cbSearchStorage.isChecked) { collectFiles(rootDir, currentTargets, "[Память]") }
             
-            // 2. Прямой поиск в кэше игры Last Island
             if (cbSearchCache.isChecked) {
                 val gameDataDir = File(rootDir, "Android/data/$targetGamePackage")
-                if (gameDataDir.exists() && gameDataDir.isDirectory) { 
-                    collectFiles(gameDataDir, currentTargets, "[Кэш игры]") 
-                }
+                if (gameDataDir.exists() && gameDataDir.isDirectory) { collectFiles(gameDataDir, currentTargets, "[Кэш игры]") }
             }
             
-            // 3. Сканирование папок Telegram
             if (cbSearchTelegram.isChecked) {
-                // А. Проверяем сохраненные загрузки (Download/Telegram)
                 val tgDownloadDir = File(rootDir, "Download/Telegram")
-                if (tgDownloadDir.exists() && tgDownloadDir.isDirectory) {
-                    collectFiles(tgDownloadDir, currentTargets, "[ТГ: Загрузки]")
-                }
-                // Б. Проверяем внутренний скрытый кэш чатов мессенджера
+                if (tgDownloadDir.exists() && tgDownloadDir.isDirectory) { collectFiles(tgDownloadDir, currentTargets, "[ТГ: Загрузки]") }
                 val tgCacheDir = File(rootDir, "Android/data/$targetTelegramPackage")
-                if (tgCacheDir.exists() && tgCacheDir.isDirectory) {
-                    collectFiles(tgCacheDir, currentTargets, "[ТГ: Кэш чатов]")
-                }
+                if (tgCacheDir.exists() && tgCacheDir.isDirectory) { collectFiles(tgCacheDir, currentTargets, "[ТГ: Кэш чатов]") }
             }
             
             foundFilesList.sortByDescending { it.file.length() }
@@ -181,7 +169,6 @@ class MainActivity : Activity() {
             val matchByName = targets.firstOrNull { target -> file.name.contains(target, ignoreCase = true) }
             if (matchByName != null) { foundFilesList.add(FileResult(file, matchByName, label)) }
             if (file.isDirectory && !file.name.startsWith(".")) {
-                // При поиске по всей памяти пропускаем системную Android, чтобы не дублировать проверки
                 if (label == "[Память]" && file.name.equals("Android", ignoreCase = true)) { continue }
                 collectFiles(file, targets, label)
             }
@@ -193,21 +180,93 @@ class MainActivity : Activity() {
         val bytes = file.length()
         val fileSize = if (bytes >= 1024 * 1024) "${bytes / (1024 * 1024)} МБ" else "${bytes / 1024} КБ"
         
-        val tvFileItem = TextView(this@MainActivity).apply {
-            text = "$typeLabel Совпадение: ($matchByName)\n📄 Тип: .$fileType | ⚖️ Вес: $fileSize\n📍 Путь: ${file.absolutePath}\n"
-            textSize = 13f
-            setTextColor(Color.parseColor("#00FF66"))
+        // Корневой контейнер элемента результата
+        val itemLayout = LinearLayout(this@MainActivity).apply {
+            orientation = LinearLayout.VERTICAL
             setPadding(20, 20, 20, 20)
             val itemShape = GradientDrawable().apply { setColor(Color.parseColor("#1A1A1E")); cornerRadius = 12f; setStroke(1, Color.parseColor("#2C2C35")) }
             background = itemShape
-            
+            val params = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(0, 0, 0, 16) }
+            layoutParams = params
+        }
+
+        val tvInfo = TextView(this@MainActivity).apply {
+            text = "$typeLabel Совпадение: ($matchByName)\n📄 Тип: .$fileType | ⚖️ Вес: $fileSize\n📍 Путь: ${file.absolutePath}\n"
+            textSize = 13f
+            setTextColor(Color.parseColor("#00FF66"))
+        }
+        itemLayout.addView(tvInfo)
+
+        // Контейнер для кнопок управления
+        val buttonsLayout = LinearLayout(this@MainActivity).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.END
+        }
+
+        // КНОПКА 1: ИНЖЕКТ (Доступна только если файл снаружи кэша игры)
+        if (typeLabel != "[Кэш игры]") {
+            val btnInject = Button(this@MainActivity).apply {
+                text = "ИНЖЕКТ"
+                setBackgroundColor(Color.parseColor("#FFD700"))
+                setTextColor(Color.BLACK)
+                textSize = 11f
+                val params = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, 80).apply { setMargins(0, 0, 16, 0) }
+                layoutParams = params
+                setOnClickListener {
+                    thread {
+                        val success = injectFileToGame(file)
+                        runOnUiThread {
+                            if (success) Toast.makeText(context, "Файл успешно скопирован в кэш игры!", Toast.LENGTH_SHORT).show()
+                            else Toast.makeText(context, "Ошибка переноса. Проверьте папку игры.", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+            }
+            buttonsLayout.addView(btnInject)
+        }
+
+        // КНОПКА 2: УДАЛИТЬ
+        val btnDelete = Button(this@MainActivity).apply {
+            text = "УДАЛИТЬ"
+            setBackgroundColor(Color.parseColor("#FF3B30"))
+            setTextColor(Color.WHITE)
+            textSize = 11f
+            val params = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, 80)
+            layoutParams = params
             setOnClickListener {
-                Toast.makeText(context, "Файл обнаружен в директории: $typeLabel", Toast.LENGTH_SHORT).show()
+                if (file.exists() && file.delete()) {
+                    Toast.makeText(context, "Файл удален!", Toast.LENGTH_SHORT).show()
+                    llResultsContainer.removeView(itemLayout)
+                } else {
+                    Toast.makeText(context, "Не удалось удалить файл.", Toast.LENGTH_SHORT).show()
+                }
             }
         }
-        
-        val params = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(0, 0, 0, 16) }
-        tvFileItem.layoutParams = params
-        llResultsContainer.addView(tvFileItem)
+        buttonsLayout.addView(btnDelete)
+        itemLayout.addView(buttonsLayout)
+
+        llResultsContainer.addView(itemLayout)
+    }
+
+    // Внутренняя функция быстрого копирования файла в игровую папку /files/
+    private fun injectFileToGame(sourceFile: File): Boolean {
+        try {
+            val destDir = File(Environment.getExternalStorageDirectory(), "Android/data/$targetGamePackage/files")
+            if (!destDir.exists()) destDir.mkdirs()
+            val destFile = File(destDir, sourceFile.name)
+            
+            FileInputStream(sourceFile).use { input ->
+                FileOutputStream(destFile).use { output ->
+                    val buffer = ByteArray(1024)
+                    var length: Int
+                    while (input.read(buffer).also { length = it } > 0) {
+                        output.write(buffer, 0, length)
+                    }
+                }
+            }
+            return true
+        } catch (e: Exception) {
+            return false
+        }
     }
 }
