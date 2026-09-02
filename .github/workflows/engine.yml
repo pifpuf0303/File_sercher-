@@ -24,7 +24,7 @@ jobs:
         gradle-version: '8.5'
         cache-disabled: true
 
-    # Генерируем современный манифест без запрещенного атрибута package
+    # Генерируем идеальный современный манифест со всеми системными разрешениями для поиска
     - name: Force Build Clean Structure
       run: |
         rm -rf app/build.gradle build.gradle settings.gradle app/src/main/AndroidManifest.xml AndroidManifest.xml
@@ -43,7 +43,7 @@ jobs:
         EOF
         
         mkdir -p app/src/main
-        echo '<?xml version="1.0" encoding="utf-8"?><manifest xmlns:android="http://android.com"><application android:label="Searcher"><activity android:name=".MainActivity" android:exported="true"><intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter></activity></application></manifest>' > app/src/main/AndroidManifest.xml
+        echo '<?xml version="1.0" encoding="utf-8"?><manifest xmlns:android="http://android.com"><uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/><uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/><uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"/><application android:label="Searcher"><activity android:name=".MainActivity" android:exported="true"><intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter></activity></application></manifest>' > app/src/main/AndroidManifest.xml
         
         mkdir -p app
         cat << 'EOF' > app/build.gradle
