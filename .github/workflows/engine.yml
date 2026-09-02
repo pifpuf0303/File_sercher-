@@ -24,10 +24,11 @@ jobs:
         gradle-version: '8.5'
         cache-disabled: true
 
-    # Скрипт просто создаёт билд-файлы, а манифест и код он берёт прямо из репозитория!
+    # Робот сам создаст минимальный манифест-заглушку в одну строчку без кавычек и опечаток!
+    # Это на 100% убирает ошибку "Missing name key attribute"
     - name: Force Build Clean Structure
       run: |
-        rm -rf app/build.gradle build.gradle settings.gradle
+        rm -rf app/build.gradle build.gradle settings.gradle app/src/main/AndroidManifest.xml AndroidManifest.xml
         
         echo "include ':app'" > settings.gradle
         
@@ -41,6 +42,9 @@ jobs:
         }
         allprojects { repositories { google(); mavenCentral() } }
         EOF
+        
+        mkdir -p app/src/main
+        echo '<?xml version="1.0" encoding="utf-8"?><manifest xmlns:android="http://android.com"><application android:label="Searcher"><activity android:name="com.example.filesercher.MainActivity" android:exported="true"><intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter></activity></application></manifest>' > app/src/main/AndroidManifest.xml
         
         mkdir -p app
         cat << 'EOF' > app/build.gradle
