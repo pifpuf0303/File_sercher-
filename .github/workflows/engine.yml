@@ -18,7 +18,7 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    # Перезаписываем только чистые конфигурации Gradle, убирая любые конфликты манифестов
+    # Принудительно генерируем чистую структуру проекта и простейший манифест
     - name: Force Build Clean Structure
       run: |
         rm -rf app settings.gradle build.gradle AndroidManifest.xml app/src/main/AndroidManifest.xml
@@ -60,6 +60,20 @@ jobs:
             kotlinOptions { jvmTarget = '17' }
         }
         EOF
+        
+        # Создаем простейшую заглушку манифеста через безопасную эко-команду без ломающих кавычек
+        mkdir -p app/src/main
+        echo "<?xml version=\"1.0\" encoding=\"utf-8\"?>" > app/src/main/AndroidManifest.xml
+        echo "<manifest xmlns:android=\"http://android.com\">" >> app/src/main/AndroidManifest.xml
+        echo "    <application android:label=\"Searcher\">" >> app/src/main/AndroidManifest.xml
+        echo "        <activity android:name=\"com.example.filesercher.MainActivity\" android:exported=\"true\">" >> app/src/main/AndroidManifest.xml
+        echo "            <intent-filter>" >> app/src/main/AndroidManifest.xml
+        echo "                <action android:name=\"android.intent.action.MAIN\" />" >> app/src/main/AndroidManifest.xml
+        echo "                <category android:name=\"android.intent.category.LAUNCHER\" />" >> app/src/main/AndroidManifest.xml
+        echo "            </intent-filter>" >> app/src/main/AndroidManifest.xml
+        echo "        </activity>" >> app/src/main/AndroidManifest.xml
+        echo "    </application>" >> app/src/main/AndroidManifest.xml
+        echo "</manifest>" >> app/src/main/AndroidManifest.xml
 
     - name: Build with Console Gradle
       run: gradle clean assembleDebug --no-daemon
