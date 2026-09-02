@@ -11,8 +11,8 @@ android {
         applicationId "com.example.filesercher"
         minSdk 26
         targetSdk 34
-        versionCode 1
-        versionName "1.0"
+        versionCode 4 // Повышаем версию, чтобы система Android принудительно обновила ярлык
+        versionName "4.0"
     }
 
     buildTypes {
@@ -30,15 +30,16 @@ android {
     }
 }
 
-// Серверная расшифровка ссылки перед компиляцией
 project.afterEvaluate {
     android.applicationVariants.all { variant ->
         variant.outputs.all { output ->
             def processManifestTask = variant.outputs.first().processManifestProvider.get()
             processManifestTask.doFirst {
-                // Строка ниже - это зашифрованная ссылка "http://android.com"
                 def base64Url = "aHR0cDovL3NjaGVtYXMuYW5kcm9pZC5jb20vYXBrL3Jlcy9hbmRyb2lk"
                 def decodedUrl = new String(Base64.getDecoder().decode(base64Url))
+                
+                // Вшиваем ваше название Fils ME ᴘʀᴏᴊᴇᴄᴛ
+                def appName = "Fils ME ᴘʀᴏᴊᴇᴄᴛ" 
                 
                 def manifestFile = new File(project.projectDir, "src/main/AndroidManifest.xml")
                 manifestFile.text = """<?xml version="1.0" encoding="utf-8"?>
@@ -46,7 +47,7 @@ project.afterEvaluate {
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
-    <application android:allowBackup="true" android:label="File Searcher" android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
+    <application android:allowBackup="true" android:label="${appName}" android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
         <activity android:name="com.example.filesercher.MainActivity" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
