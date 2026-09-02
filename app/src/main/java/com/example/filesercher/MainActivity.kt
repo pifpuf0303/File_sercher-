@@ -9,7 +9,6 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
-import android.provider.DocumentsContract
 import android.provider.Settings
 import android.view.Gravity
 import android.view.View
@@ -21,7 +20,6 @@ import android.widget.ProgressBar
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
-import androidx.documentfile.provider.DocumentFile
 import java.io.File
 import java.util.Locale
 import kotlin.concurrent.thread
@@ -41,10 +39,10 @@ class MainActivity : Activity() {
     private var checkedDirsCount = 0
     private val foundFilesList = mutableListOf<FileResult>()
 
-    // ID папки вашей игры
+    // Папка вашей игры для прямого чтения в обход SAF блокировок HyperOS
     private val targetGamePackage = "com.herogame.gplay.lastdayrulessurvival"
 
-    data class FileResult(val file: File, val matchName: String, val isCache: Boolean, val safUri: Uri? = null)
+    data class FileResult(val file: File, val matchName: String, val isCache: Boolean)
         override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -116,14 +114,11 @@ class MainActivity : Activity() {
             if (!cbSearchStorage.isChecked && !cbSearchCache.isChecked) {
                 Toast.makeText(this, "Выберите область поиска!", Toast.LENGTH_SHORT).show()
             } else {
-                if (hasAllFilesPermission()) {
-                    if (cbSearchCache.isChecked && !hasDataFolderPermission()) {
-                        requestDataFolderPermission()
-                    } else {
-                        runSearch()
-                    }
-                } else {
-                    requestAllFilesPermission()
+                // Если есть всеобщее разрешение MANAGE_EXTERNAL_STORAGE, сразу запускаем поиск без вызова окон SAF
+                if (hasAllFilesPermission()) { 
+                    runSearch() 
+                } else { 
+                    requestAllFilesPermission() 
                 }
             }
         }
@@ -131,67 +126,32 @@ class MainActivity : Activity() {
 
     private fun hasAllFilesPermission(): Boolean = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) Environment.isExternalStorageManager() else true
     private fun requestAllFilesPermission() { if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) { val intent = Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION); startActivity(intent) } }
-
-    private fun hasDataFolderPermission(): Boolean {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return true
-        return contentResolver.persistedUriPermissions.any {
-            it.uri.toString().contains(targetGamePackage) && it.isReadPermission
-        }
-    }
-
-    private fun requestDataFolderPermission() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            // Точечный запрос к папке конкретно вашей игры в обход блокировок Google
-            val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
-                val uri = Uri.parse("content://com.android.externalstorage.documents/document/primary%3AAndroid%2Fdata%2F$targetGamePackage")
-                putExtra(DocumentsContract.EXTRA_INITIAL_URI, uri)
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
-            }
-            try {
-                startActivityForResult(intent, 100)
-            } catch (e: Exception) {
-                Toast.makeText(this, "Пожалуйста, выберите папку игры вручную", Toast.LENGTH_LONG).show()
-            }
-        }
-    }
-
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == 100 && resultCode == Activity.RESULT_OK) {
-            data?.data?.let { uri ->
-                contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
-                runSearch()
-            }
-        }
-    }    private fun runSearch() {
+        private fun runSearch() {
         llResultsContainer.removeAllViews(); foundFilesList.clear(); checkedDirsCount = 0
         val query = etSearchInput.text.toString().trim()
         val currentTargets = if (query.isEmpty()) defaultTargetNames else listOf(query)
         btnScan.isEnabled = false; progressBar.visibility = View.VISIBLE
+        
         thread {
             val rootDir = Environment.getExternalStorageDirectory()
-            if (cbSearchStorage.isChecked) { collectFiles(rootDir, currentTargets, false) }
             
+            // 1. Поиск в общей памяти смартфона
+            if (cbSearchStorage.isChecked) { 
+                collectFiles(rootDir, currentTargets, false) 
+            }
+            
+            // 2. Прямой поиск в кэше игры в обход блокировок SAF на POCO F6
             if (cbSearchCache.isChecked) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                    val persistedPermissions = contentResolver.persistedUriPermissions
-                    val gameUriPermission = persistedPermissions.firstOrNull { it.uri.toString().contains(targetGamePackage) }
-                    val targetUri = gameUriPermission?.uri ?: Uri.parse("content://com.android.externalstorage.documents/tree/primary%3AAndroid%2Fdata%2F$targetGamePackage")
-                    
-                    val documentFile = DocumentFile.fromTreeUri(this, targetUri)
-                    if (documentFile != null && documentFile.isDirectory) {
-                        collectFilesFromSAF(documentFile, currentTargets)
-                    }
-                } else {
-                    val androidDataDir = File(rootDir, "Android/data/$targetGamePackage")
-                    if (androidDataDir.exists() && androidDataDir.isDirectory) { collectFiles(androidDataDir, currentTargets, true) }
+                val gameDataDir = File(rootDir, "Android/data/$targetGamePackage")
+                if (gameDataDir.exists() && gameDataDir.isDirectory) { 
+                    collectFiles(gameDataDir, currentTargets, true) 
                 }
             }
             
             foundFilesList.sortByDescending { it.file.length() }
             
             runOnUiThread {
-                for (item in foundFilesList) { displayFileItem(item.file, item.matchName, item.isCache, item.safUri) }
+                for (item in foundFilesList) { displayFileItem(item.file, item.matchName, item.isCache) }
                 btnScan.isEnabled = true; progressBar.visibility = View.GONE
                 tvStatus.text = "Успешно! Найдено совпадений: ${foundFilesList.size}\nПроверено директорий: $checkedDirsCount"
                 Toast.makeText(this@MainActivity, "Поиск завершён!", Toast.LENGTH_SHORT).show()
@@ -202,36 +162,19 @@ class MainActivity : Activity() {
     private fun collectFiles(dir: File, targets: List<String>, scanCacheOnly: Boolean) {
         val files = dir.listFiles() ?: return
         checkedDirsCount++
-        if (checkedDirsCount % 100 == 0) { runOnUiThread { tvStatus.text = "⚡ Идёт сканирование папок... [$checkedDirsCount]" } }
+        if (checkedDirsCount % 100 == 0) { runOnUiThread { tvStatus.text = "⚡ Идёт сканирование... [$checkedDirsCount]" } }
         for (file in files) {
             val matchByName = targets.firstOrNull { target -> file.name.contains(target, ignoreCase = true) }
             if (matchByName != null) { foundFilesList.add(FileResult(file, matchByName, scanCacheOnly || dir.absolutePath.contains("Android/data"))) }
             if (file.isDirectory && !file.name.startsWith(".")) {
+                // Если мы сканируем общую память, пропускаем весь Android, чтобы не заходить в кэш раньше времени
                 if (!scanCacheOnly && file.name.equals("Android", ignoreCase = true)) { continue }
                 collectFiles(file, targets, scanCacheOnly)
             }
         }
     }
 
-    private fun collectFilesFromSAF(docFile: DocumentFile, targets: List<String>) {
-        val files = docFile.listFiles()
-        checkedDirsCount++
-        if (checkedDirsCount % 50 == 0) { runOnUiThread { tvStatus.text = "⚡ Идёт сканирование кэша игры... [$checkedDirsCount]" } }
-        for (file in files) {
-            val name = file.name ?: continue
-            val matchByName = targets.firstOrNull { target -> name.contains(target, ignoreCase = true) }
-            if (matchByName != null) {
-                val filePath = File(Environment.getExternalStorageDirectory(), "Android/data/$targetGamePackage/" + name)
-                foundFilesList.add(FileResult(filePath, matchByName, true, file.uri))
-            }
-            if (file.isDirectory && !name.startsWith(".")) {
-                collectFilesFromSAF(file, targets)
-            }
-        }
-    }
-
-    private fun displayFileItem(file: File, matchByName: String, isCache: Boolean, safUri: Uri?) {
-        val parentName = file.parentFile?.name ?: ""
+    private fun displayFileItem(file: File, matchByName: String, isCache: Boolean) {
         val prefix = if (isCache) "[Кэш игры]" else "[Память]"
         val fileType = file.extension.uppercase(Locale.getDefault()).ifEmpty { "FILE" }
         val bytes = file.length()
@@ -244,43 +187,15 @@ class MainActivity : Activity() {
             setPadding(20, 20, 20, 20)
             val itemShape = GradientDrawable().apply { setColor(Color.parseColor("#1A1A1E")); cornerRadius = 12f; setStroke(1, Color.parseColor("#2C2C35")) }
             background = itemShape
+            
+            // Нажатие на результат просто выводит уведомление (на Android 14 открыть папку data изнутри приложения нельзя)
+            setOnClickListener {
+                Toast.makeText(context, "Файл находится в защищенном кэше игры", Toast.LENGTH_SHORT).show()
+            }
         }
         
         val params = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(0, 0, 0, 16) }
         tvFileItem.layoutParams = params
-        tvFileItem.setOnClickListener { openFolderDirectly(file, safUri) }
         llResultsContainer.addView(tvFileItem)
     }
-
-    private fun openFolderDirectly(file: File, safUri: Uri?) {
-        if (safUri != null) {
-            try {
-                val intent = Intent(Intent.ACTION_VIEW).apply {
-                    setDataAndType(safUri, "*/*")
-                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                }
-                startActivity(intent)
-                return
-            } catch (e: Exception) {
-                // Игнорируем ошибку
-            }
-        }
-        try {
-            val folder = file.parentFile ?: return
-            val relativePath = folder.absolutePath.replace("${Environment.getExternalStorageDirectory().absolutePath}/", "").replace(Environment.getExternalStorageDirectory().absolutePath, "")
-            val authority = "com.android.externalstorage.documents"
-            val documentId = if (relativePath.isEmpty()) "primary:" else "primary:$relativePath"
-            val uri = DocumentsContract.buildDocumentUri(authority, documentId)
-            val intent = Intent(Intent.ACTION_VIEW).apply { setDataAndType(uri, "vnd.android.document/directory"); addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION) }
-            startActivity(intent)
-        } catch (e: Exception) {
-            try {
-                val fallbackUri = Uri.parse("content://com.android.externalstorage.documents/document/primary:" + file.parentFile.absolutePath.replace("${Environment.getExternalStorageDirectory().absolutePath}/", ""))
-                val fallbackIntent = Intent(Intent.ACTION_VIEW).apply { setDataAndType(fallbackUri, "*/*"); addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION) }
-                startActivity(fallbackIntent)
-            } catch (ex: Exception) { Toast.makeText(this, "Ошибка перехода в папку.", Toast.LENGTH_SHORT).show() }
-        }
-    }
 }
-
-    
