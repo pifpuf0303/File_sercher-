@@ -34,15 +34,17 @@ class MainActivity : Activity() {
     
     private lateinit var cbSearchStorage: CheckBox
     private lateinit var cbSearchCache: CheckBox
+    private lateinit var cbSearchTelegram: CheckBox
     
     private val defaultTargetNames = listOf("libil2cpp.so", "Yandere.zip", "R4x", "Viento", "Spoof_lios")
     private var checkedDirsCount = 0
     private val foundFilesList = mutableListOf<FileResult>()
 
-    // Папка вашей игры для прямого чтения в обход SAF блокировок HyperOS
+    // Константы пакетов для прямого чтения
     private val targetGamePackage = "com.herogame.gplay.lastdayrulessurvival"
+    private val targetTelegramPackage = "org.telegram.messenger"
 
-    data class FileResult(val file: File, val matchName: String, val isCache: Boolean)
+    data class FileResult(val file: File, val matchName: String, val typeLabel: String)
         override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -94,6 +96,9 @@ class MainActivity : Activity() {
         cbSearchCache = CheckBox(this).apply { text = "Искать в кэше игры Last Island"; setTextColor(Color.WHITE); isChecked = true }
         mainLayout.addView(cbSearchCache)
 
+        cbSearchTelegram = CheckBox(this).apply { text = "Искать в чатах Telegram"; setTextColor(Color.WHITE); isChecked = true }
+        mainLayout.addView(cbSearchTelegram)
+
         btnScan = Button(this).apply { text = "ГЛУБОКИЙ ПОИСК" }
         mainLayout.addView(btnScan)
 
@@ -111,15 +116,10 @@ class MainActivity : Activity() {
         setContentView(mainLayout)
 
         btnScan.setOnClickListener {
-            if (!cbSearchStorage.isChecked && !cbSearchCache.isChecked) {
+            if (!cbSearchStorage.isChecked && !cbSearchCache.isChecked && !cbSearchTelegram.isChecked) {
                 Toast.makeText(this, "Выберите область поиска!", Toast.LENGTH_SHORT).show()
             } else {
-                // Если есть всеобщее разрешение MANAGE_EXTERNAL_STORAGE, сразу запускаем поиск без вызова окон SAF
-                if (hasAllFilesPermission()) { 
-                    runSearch() 
-                } else { 
-                    requestAllFilesPermission() 
-                }
+                if (hasAllFilesPermission()) { runSearch() } else { requestAllFilesPermission() }
             }
         }
     }
@@ -135,23 +135,37 @@ class MainActivity : Activity() {
         thread {
             val rootDir = Environment.getExternalStorageDirectory()
             
-            // 1. Поиск в общей памяти смартфона
+            // 1. Поиск в общей памяти
             if (cbSearchStorage.isChecked) { 
-                collectFiles(rootDir, currentTargets, false) 
+                collectFiles(rootDir, currentTargets, "[Память]") 
             }
             
-            // 2. Прямой поиск в кэше игры в обход блокировок SAF на POCO F6
+            // 2. Прямой поиск в кэше игры Last Island
             if (cbSearchCache.isChecked) {
                 val gameDataDir = File(rootDir, "Android/data/$targetGamePackage")
                 if (gameDataDir.exists() && gameDataDir.isDirectory) { 
-                    collectFiles(gameDataDir, currentTargets, true) 
+                    collectFiles(gameDataDir, currentTargets, "[Кэш игры]") 
+                }
+            }
+            
+            // 3. Сканирование папок Telegram
+            if (cbSearchTelegram.isChecked) {
+                // А. Проверяем сохраненные загрузки (Download/Telegram)
+                val tgDownloadDir = File(rootDir, "Download/Telegram")
+                if (tgDownloadDir.exists() && tgDownloadDir.isDirectory) {
+                    collectFiles(tgDownloadDir, currentTargets, "[ТГ: Загрузки]")
+                }
+                // Б. Проверяем внутренний скрытый кэш чатов мессенджера
+                val tgCacheDir = File(rootDir, "Android/data/$targetTelegramPackage")
+                if (tgCacheDir.exists() && tgCacheDir.isDirectory) {
+                    collectFiles(tgCacheDir, currentTargets, "[ТГ: Кэш чатов]")
                 }
             }
             
             foundFilesList.sortByDescending { it.file.length() }
             
             runOnUiThread {
-                for (item in foundFilesList) { displayFileItem(item.file, item.matchName, item.isCache) }
+                for (item in foundFilesList) { displayFileItem(item.file, item.matchName, item.typeLabel) }
                 btnScan.isEnabled = true; progressBar.visibility = View.GONE
                 tvStatus.text = "Успешно! Найдено совпадений: ${foundFilesList.size}\nПроверено директорий: $checkedDirsCount"
                 Toast.makeText(this@MainActivity, "Поиск завершён!", Toast.LENGTH_SHORT).show()
@@ -159,38 +173,36 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun collectFiles(dir: File, targets: List<String>, scanCacheOnly: Boolean) {
+    private fun collectFiles(dir: File, targets: List<String>, label: String) {
         val files = dir.listFiles() ?: return
         checkedDirsCount++
         if (checkedDirsCount % 100 == 0) { runOnUiThread { tvStatus.text = "⚡ Идёт сканирование... [$checkedDirsCount]" } }
         for (file in files) {
             val matchByName = targets.firstOrNull { target -> file.name.contains(target, ignoreCase = true) }
-            if (matchByName != null) { foundFilesList.add(FileResult(file, matchByName, scanCacheOnly || dir.absolutePath.contains("Android/data"))) }
+            if (matchByName != null) { foundFilesList.add(FileResult(file, matchByName, label)) }
             if (file.isDirectory && !file.name.startsWith(".")) {
-                // Если мы сканируем общую память, пропускаем весь Android, чтобы не заходить в кэш раньше времени
-                if (!scanCacheOnly && file.name.equals("Android", ignoreCase = true)) { continue }
-                collectFiles(file, targets, scanCacheOnly)
+                // При поиске по всей памяти пропускаем системную Android, чтобы не дублировать проверки
+                if (label == "[Память]" && file.name.equals("Android", ignoreCase = true)) { continue }
+                collectFiles(file, targets, label)
             }
         }
     }
 
-    private fun displayFileItem(file: File, matchByName: String, isCache: Boolean) {
-        val prefix = if (isCache) "[Кэш игры]" else "[Память]"
+    private fun displayFileItem(file: File, matchByName: String, typeLabel: String) {
         val fileType = file.extension.uppercase(Locale.getDefault()).ifEmpty { "FILE" }
         val bytes = file.length()
         val fileSize = if (bytes >= 1024 * 1024) "${bytes / (1024 * 1024)} МБ" else "${bytes / 1024} КБ"
         
         val tvFileItem = TextView(this@MainActivity).apply {
-            text = "$prefix Найдено ($matchByName)\n📄 Тип: .$fileType | ⚖️ Вес: $fileSize\n📍 Путь: ${file.absolutePath}\n"
+            text = "$typeLabel Совпадение: ($matchByName)\n📄 Тип: .$fileType | ⚖️ Вес: $fileSize\n📍 Путь: ${file.absolutePath}\n"
             textSize = 13f
             setTextColor(Color.parseColor("#00FF66"))
             setPadding(20, 20, 20, 20)
             val itemShape = GradientDrawable().apply { setColor(Color.parseColor("#1A1A1E")); cornerRadius = 12f; setStroke(1, Color.parseColor("#2C2C35")) }
             background = itemShape
             
-            // Нажатие на результат просто выводит уведомление (на Android 14 открыть папку data изнутри приложения нельзя)
             setOnClickListener {
-                Toast.makeText(context, "Файл находится в защищенном кэше игры", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Файл обнаружен в директории: $typeLabel", Toast.LENGTH_SHORT).show()
             }
         }
         
