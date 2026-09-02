@@ -1,11 +1,1 @@
-<?xml version="1.0" encoding="utf-8"?>
-<manifest package="com.example.filesercher">
-    <application>
-        <activity android:name="com.example.filesercher.MainActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
-    </application>
-</manifest>
+
