@@ -138,11 +138,16 @@ class MainActivity : Activity() {
 
     private fun requestDataFolderPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            // Исправленный мягкий запрос: открывает файловый менеджер в корне, 
+            // позволяя обойти ошибку безопасности Android 13-14
             val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
-                val uri = Uri.parse("content://com.android.externalstorage.documents/document/primary%3AAndroid%2Fdata")
-                putExtra(DocumentsContract.EXTRA_INITIAL_URI, uri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
             }
-            startActivityForResult(intent, 100)
+            try {
+                startActivityForResult(intent, 100)
+            } catch (e: Exception) {
+                Toast.makeText(this, "Ошибка открытия проводника", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
@@ -165,8 +170,11 @@ class MainActivity : Activity() {
             
             if (cbSearchCache.isChecked) {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                    val uri = Uri.parse("content://com.android.externalstorage.documents/tree/primary%3AAndroid%2Fdata")
-                    val documentFile = DocumentFile.fromTreeUri(this, uri)
+                    val persistedPermissions = contentResolver.persistedUriPermissions
+                    val dataUriPermission = persistedPermissions.firstOrNull { it.uri.toString().contains("android%3Adata") }
+                    val targetUri = dataUriPermission?.uri ?: Uri.parse("content://com.android.externalstorage.documents/tree/primary%3AAndroid%2Fdata")
+                    
+                    val documentFile = DocumentFile.fromTreeUri(this, targetUri)
                     if (documentFile != null && documentFile.isDirectory) {
                         collectFilesFromSAF(documentFile, currentTargets)
                     }
@@ -250,7 +258,7 @@ class MainActivity : Activity() {
                 startActivity(intent)
                 return
             } catch (e: Exception) {
-                // Игнорируем ошибку и идем дальше
+                // Игнорируем ошибку
             }
         }
         try {
