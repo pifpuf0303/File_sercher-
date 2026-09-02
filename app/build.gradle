@@ -13,6 +13,9 @@ android {
         targetSdk 34
         versionCode 1
         versionName "1.0"
+        
+        // Передаем защищенную ссылку через Gradle
+        manifestPlaceholders = [androidSchema: "http://schemas.android.com/apk/res/android"]
     }
 
     buildTypes {
