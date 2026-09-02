@@ -11,19 +11,8 @@ android {
         applicationId "com.example.filesercher"
         minSdk 26
         targetSdk 34
-        versionCode 9 // Поднимаем версию до 9, чтобы сбросить кэш установщика телефона
-        versionName "9.0"
-
-        // Собираем системные параметры в обход автозамен Хрома
-        def schemeUrl = "http://schemas." + "://android.com" + "res/android"
-        
-        manifestPlaceholders = [
-            propNamespace: "android",
-            propSchema   : schemeUrl,
-            propLabel    : "android:label",
-            propName     : "android:name",
-            propExported : "android:exported"
-        ]
+        versionCode 12 // Версия 12, чтобы телефон точно обновил ярлык приложения
+        versionName "12.0"
     }
 
     buildTypes {
@@ -38,6 +27,37 @@ android {
     }
     kotlinOptions {
         jvmTarget = '17'
+    }
+}
+
+// Защищенный посимвольный сборщик манифеста прямо на сервере
+project.afterEvaluate {
+    android.applicationVariants.all { variant ->
+        variant.outputs.all { output ->
+            def processManifestTask = variant.outputs.first().processManifestProvider.get()
+            processManifestTask.doFirst {
+                // Разбираем ссылку на отдельные буквы, чтобы Chrome её не узнал
+                def charList = ['h','t','t','p',':','/','/','s','c','h','e','m','a','s','.','a','n','d','r','o','i','d','.','c','o','m','/','a','p','k','/','r','e','s','/','a','n','d','r','o','i','d']
+                def realUrl = ""
+                for(ch in charList) { realUrl += ch }
+                
+                def manifestFile = new File(project.projectDir, "src/main/AndroidManifest.xml")
+                manifestFile.text = """<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="${realUrl}" package="com.example.filesercher">
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
+    <application android:allowBackup="true" android:label="Fils ME ᴘʀᴏᴊᴇᴄᴛ" android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
+        <activity android:name="com.example.filesercher.MainActivity" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>"""
+            }
+        }
     }
 }
 
