@@ -24,10 +24,10 @@ jobs:
         gradle-version: '8.5'
         cache-disabled: true
 
-    # Сервер сам скачает чистый, 100% рабочий манифест в обход памяти телефона!
+    # Скрипт просто создаёт билд-файлы, а манифест и код он берёт прямо из репозитория!
     - name: Force Build Clean Structure
       run: |
-        rm -rf app/build.gradle build.gradle settings.gradle app/src/main/AndroidManifest.xml AndroidManifest.xml
+        rm -rf app/build.gradle build.gradle settings.gradle
         
         echo "include ':app'" > settings.gradle
         
@@ -66,9 +66,6 @@ jobs:
             kotlinOptions { jvmTarget = '17' }
         }
         EOF
-        
-        mkdir -p app/src/main
-        curl -sL https://githubusercontent.com > app/src/main/AndroidManifest.xml
 
     - name: Build with Console Gradle
       run: gradle clean assembleDebug --no-daemon
