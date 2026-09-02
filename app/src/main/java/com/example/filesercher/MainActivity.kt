@@ -41,6 +41,9 @@ class MainActivity : Activity() {
     private var checkedDirsCount = 0
     private val foundFilesList = mutableListOf<FileResult>()
 
+    // ID папки вашей игры
+    private val targetGamePackage = "com.herogame.gplay.lastdayrulessurvival"
+
     data class FileResult(val file: File, val matchName: String, val isCache: Boolean, val safUri: Uri? = null)
         override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -90,7 +93,7 @@ class MainActivity : Activity() {
         cbSearchStorage = CheckBox(this).apply { text = "Искать в общей памяти"; setTextColor(Color.WHITE); isChecked = true }
         mainLayout.addView(cbSearchStorage)
 
-        cbSearchCache = CheckBox(this).apply { text = "Искать в кэше (Android/data)"; setTextColor(Color.WHITE); isChecked = true }
+        cbSearchCache = CheckBox(this).apply { text = "Искать в кэше игры Last Island"; setTextColor(Color.WHITE); isChecked = true }
         mainLayout.addView(cbSearchCache)
 
         btnScan = Button(this).apply { text = "ГЛУБОКИЙ ПОИСК" }
@@ -132,21 +135,22 @@ class MainActivity : Activity() {
     private fun hasDataFolderPermission(): Boolean {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return true
         return contentResolver.persistedUriPermissions.any {
-            it.uri.toString().contains("android%3Adata") && it.isReadPermission
+            it.uri.toString().contains(targetGamePackage) && it.isReadPermission
         }
     }
 
     private fun requestDataFolderPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            // Исправленный мягкий запрос: открывает файловый менеджер в корне, 
-            // позволяя обойти ошибку безопасности Android 13-14
+            // Точечный запрос к папке конкретно вашей игры в обход блокировок Google
             val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
+                val uri = Uri.parse("content://com.android.externalstorage.documents/document/primary%3AAndroid%2Fdata%2F$targetGamePackage")
+                putExtra(DocumentsContract.EXTRA_INITIAL_URI, uri)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
             }
             try {
                 startActivityForResult(intent, 100)
             } catch (e: Exception) {
-                Toast.makeText(this, "Ошибка открытия проводника", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Пожалуйста, выберите папку игры вручную", Toast.LENGTH_LONG).show()
             }
         }
     }
@@ -171,15 +175,15 @@ class MainActivity : Activity() {
             if (cbSearchCache.isChecked) {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                     val persistedPermissions = contentResolver.persistedUriPermissions
-                    val dataUriPermission = persistedPermissions.firstOrNull { it.uri.toString().contains("android%3Adata") }
-                    val targetUri = dataUriPermission?.uri ?: Uri.parse("content://com.android.externalstorage.documents/tree/primary%3AAndroid%2Fdata")
+                    val gameUriPermission = persistedPermissions.firstOrNull { it.uri.toString().contains(targetGamePackage) }
+                    val targetUri = gameUriPermission?.uri ?: Uri.parse("content://com.android.externalstorage.documents/tree/primary%3AAndroid%2Fdata%2F$targetGamePackage")
                     
                     val documentFile = DocumentFile.fromTreeUri(this, targetUri)
                     if (documentFile != null && documentFile.isDirectory) {
                         collectFilesFromSAF(documentFile, currentTargets)
                     }
                 } else {
-                    val androidDataDir = File(rootDir, "Android/data")
+                    val androidDataDir = File(rootDir, "Android/data/$targetGamePackage")
                     if (androidDataDir.exists() && androidDataDir.isDirectory) { collectFiles(androidDataDir, currentTargets, true) }
                 }
             }
@@ -212,12 +216,12 @@ class MainActivity : Activity() {
     private fun collectFilesFromSAF(docFile: DocumentFile, targets: List<String>) {
         val files = docFile.listFiles()
         checkedDirsCount++
-        if (checkedDirsCount % 50 == 0) { runOnUiThread { tvStatus.text = "⚡ Идёт сканирование кэша... [$checkedDirsCount]" } }
+        if (checkedDirsCount % 50 == 0) { runOnUiThread { tvStatus.text = "⚡ Идёт сканирование кэша игры... [$checkedDirsCount]" } }
         for (file in files) {
             val name = file.name ?: continue
             val matchByName = targets.firstOrNull { target -> name.contains(target, ignoreCase = true) }
             if (matchByName != null) {
-                val filePath = File(Environment.getExternalStorageDirectory(), "Android/data/" + (docFile.name ?: "") + "/" + name)
+                val filePath = File(Environment.getExternalStorageDirectory(), "Android/data/$targetGamePackage/" + name)
                 foundFilesList.add(FileResult(filePath, matchByName, true, file.uri))
             }
             if (file.isDirectory && !name.startsWith(".")) {
@@ -228,7 +232,7 @@ class MainActivity : Activity() {
 
     private fun displayFileItem(file: File, matchByName: String, isCache: Boolean, safUri: Uri?) {
         val parentName = file.parentFile?.name ?: ""
-        val prefix = if (isCache) "[Кэш: $parentName]" else "[Память]"
+        val prefix = if (isCache) "[Кэш игры]" else "[Память]"
         val fileType = file.extension.uppercase(Locale.getDefault()).ifEmpty { "FILE" }
         val bytes = file.length()
         val fileSize = if (bytes >= 1024 * 1024) "${bytes / (1024 * 1024)} МБ" else "${bytes / 1024} КБ"
