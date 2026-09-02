@@ -12,16 +12,22 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Set up JDK 17
+    - name: Set up Java 17
       uses: actions/setup-java@v4
       with:
         java-version: '17'
         distribution: 'temurin'
 
-    # Полностью пересоздаем структуру билд-файлов и современного манифеста без package
+    - name: Setup Gradle 8.5
+      uses: gradle/actions/setup-gradle@v4
+      with:
+        gradle-version: '8.5'
+        cache-disabled: true
+
+    # Скрипт сам создаст правильную модульную структуру проекта прямо на сервере
     - name: Force Build Clean Structure
       run: |
-        rm -rf app settings.gradle build.gradle AndroidManifest.xml app/src/main/AndroidManifest.xml
+        rm -rf app/build.gradle build.gradle settings.gradle app/src/main/AndroidManifest.xml AndroidManifest.xml
         
         echo "include ':app'" > settings.gradle
         
@@ -38,12 +44,25 @@ jobs:
         
         mkdir -p app
         cat << 'EOF' > app/build.gradle
-        plugins { id 'com.android.application'; id 'org.jetbrains.kotlin.android' }
+        plugins {
+            id 'com.android.application'
+            id 'org.jetbrains.kotlin.android'
+        }
         android {
             namespace 'com.example.filesercher'
             compileSdk 34
-            defaultConfig { applicationId "com.example.filesercher"; minSdk 21; targetSdk 34; versionCode 1; versionName "1.0"; multiDexEnabled true }
-            compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+            defaultConfig {
+                applicationId "com.example.filesercher"
+                minSdk 21
+                targetSdk 34
+                versionCode 1
+                versionName "1.0"
+                multiDexEnabled true
+            }
+            compileOptions {
+                sourceCompatibility JavaVersion.VERSION_17
+                targetCompatibility JavaVersion.VERSION_17
+            }
             kotlinOptions { jvmTarget = '17' }
         }
         EOF
