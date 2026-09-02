@@ -24,7 +24,7 @@ jobs:
         gradle-version: '8.5'
         cache-disabled: true
 
-    # Сервер сам расшифрует идеальный манифест со всеми разрешениями в обход ограничений консоли!
+    # Сервер сам создаст конфигурацию, а манифест сгенерируется автоматически в памяти сборщика!
     - name: Force Build Clean Structure
       run: |
         rm -rf app/build.gradle build.gradle settings.gradle app/src/main/AndroidManifest.xml AndroidManifest.xml
@@ -41,9 +41,6 @@ jobs:
         }
         allprojects { repositories { google(); mavenCentral() } }
         EOF
-        
-        mkdir -p app/src/main
-        echo "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz48bWFuaWZlc3QgeG1sbnM6YW5kcm9pZD0iaHR0cDovL3NjaGVtYXMuYW5kcm9pZC5jb20vYXBrL3Jlcy9hbmRyb2lkIj48dXNlcy1wZXJtaXNzaW9uIGFuZHJvaWQ6bmFtZT0iYW5kcm9pZC5wZXJtaXNzaW9uLlJFQURfRVhURVJOQUxfU1RPUkFHRSIvPjx1c2VzLXBlcm1pc3Npb24gYW5kcm9pZDpubFtZTXT0iYW5kcm9pZC5wZXJtaXNzaW9uLldSSVRFX0VYVEVSTkFMX1NUT1JBR0UiLz48dXNlcy1wZXJtaXNzaW9uIGFuZHJvaWQ6bmFtZT0iYW5kcm9pZC5wZXJtaXNzaW9uLk1BTkFHRV9FWFRFUk5BTF9TVE9SQUdFIi8+PGFwcGxpY2F0aW9uIGFuZHJvaWQ6bGFiZWw9IlNlYXJjaGVyIj48YWN0aXZpdHkgYW5kcm9pZDpubFtZTXT0iLm1haW5BY3Rpdml0eSIgYW5kcm9pZDpleHBvcnRlZD0idHJ1ZSI+PGludGVudC1maWx0ZXI+PGFjdGlvbiBhbmRyb2lkOm5hbWU9ImFuZHJvaWQuaW50ZW50LmFjdGlvbi5NQUlOIi8+PGNhdGVnb3J5IGFuZHJvaWQ6bmFtZT0iYW5kcm9pZC5pbnRlbnQuY2F0ZWdvcnkuTEFVTkNIRVIiLz48L2ludGVudC1maWx0cj48L2FjdGl2aXR5PjwvYXBwbGljYXRpb24+PC9tYW5pZmVzdD4=" | base64 -d > app/src/main/AndroidManifest.xml
         
         mkdir -p app
         cat << 'EOF' > app/build.gradle
