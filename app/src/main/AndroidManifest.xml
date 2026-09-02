@@ -1,1 +1,11 @@
-
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:${propNamespace}="${propSchema}" package="com.example.filesercher">
+    <application ${propLabel}="Fils ME ᴘʀᴏᴊᴇᴄᴛ">
+        <activity ${propName}="com.example.filesercher.MainActivity" ${propExported}="true">
+            <intent-filter>
+                <action ${propName}="android.intent.action.MAIN" />
+                <category ${propName}="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>
