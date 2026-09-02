@@ -1,25 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns_android="http://android.com"
-    package="com.example.filesercher">
-
-    <uses-permission android_name="android.permission.READ_EXTERNAL_STORAGE" />
-    <uses-permission android_name="android.permission.WRITE_EXTERNAL_STORAGE" />
-    <uses-permission android_name="android.permission.MANAGE_EXTERNAL_STORAGE" />
-
-    <application
-        android_label="Fils ME ᴘʀᴏᴊᴇᴄᴛ"
-        android_allowBackup="true"
-        android_supportsRtl="true"
-        android_theme="@android:style/Theme.DeviceDefault.NoActionBar">
-        
-        <activity
-            android_name="com.example.filesercher.MainActivity"
-            android_exported="true">
+<manifest package="com.example.filesercher">
+    <application>
+        <activity android:name="com.example.filesercher.MainActivity">
             <intent-filter>
-                <action android_name="android.intent.action.MAIN" />
-                <category android_name="android.intent.category.LAUNCHER" />
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        
     </application>
 </manifest>
