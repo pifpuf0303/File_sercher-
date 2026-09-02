@@ -11,8 +11,8 @@ android {
         applicationId "com.example.filesercher"
         minSdk 26
         targetSdk 34
-        versionCode 13 // Поднимаем версию до 13, чтобы сбросить кэш установщика в ноль
-        versionName "13.0"
+        versionCode 15 // Поднимаем версию до 13, чтобы сбросить кэш установщика в ноль
+        versionName "15.0"
     }
 
     buildTypes {
