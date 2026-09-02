@@ -42,8 +42,7 @@ class MainActivity : Activity() {
     private val foundFilesList = mutableListOf<FileResult>()
 
     data class FileResult(val file: File, val matchName: String, val isCache: Boolean, val safUri: Uri? = null)
-
-    override fun onCreate(savedInstanceState: Bundle?) {
+        override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         val mainLayout = LinearLayout(this).apply {
@@ -155,8 +154,7 @@ class MainActivity : Activity() {
                 runSearch()
             }
         }
-    }
-        private fun runSearch() {
+    }    private fun runSearch() {
         llResultsContainer.removeAllViews(); foundFilesList.clear(); checkedDirsCount = 0
         val query = etSearchInput.text.toString().trim()
         val currentTargets = if (query.isEmpty()) defaultTargetNames else listOf(query)
@@ -252,7 +250,7 @@ class MainActivity : Activity() {
                 startActivity(intent)
                 return
             } catch (e: Exception) {
-                // Если SAF-метод не сработал, идем в стандартный фолбэк
+                // Игнорируем ошибку и идем дальше
             }
         }
         try {
@@ -272,3 +270,5 @@ class MainActivity : Activity() {
         }
     }
 }
+
+    
