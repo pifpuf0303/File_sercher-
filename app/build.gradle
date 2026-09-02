@@ -11,8 +11,19 @@ android {
         applicationId "com.example.filesercher"
         minSdk 26
         targetSdk 34
-        versionCode 8 // Поднимаем версию до 8, чтобы телефон принудительно обновил ярлык
-        versionName "8.0"
+        versionCode 9 // Поднимаем версию до 9, чтобы сбросить кэш установщика телефона
+        versionName "9.0"
+
+        // Собираем системные параметры в обход автозамен Хрома
+        def schemeUrl = "http://schemas." + "://android.com" + "res/android"
+        
+        manifestPlaceholders = [
+            propNamespace: "android",
+            propSchema   : schemeUrl,
+            propLabel    : "android:label",
+            propName     : "android:name",
+            propExported : "android:exported"
+        ]
     }
 
     buildTypes {
@@ -27,38 +38,6 @@ android {
     }
     kotlinOptions {
         jvmTarget = '17'
-    }
-}
-
-// Серверный генератор: создаёт манифест прямо во время сборки
-project.afterEvaluate {
-    android.applicationVariants.all { variant ->
-        variant.outputs.all { output ->
-            def processManifestTask = variant.outputs.first().processManifestProvider.get()
-            processManifestTask.doFirst {
-                // Декодируем ссылку из Base64, пряча её от Хрома на телефоне
-                def base64Url = "aHR0cDovL3NjaGVtYXMuYW5kcm9pZC5jb20vYXBrL3Jlcy9hbmRyb2lk"
-                def decodedUrl = new String(Base64.getDecoder().decode(base64Url))
-                
-                def manifestFile = new File(project.projectDir, "src/main/AndroidManifest.xml")
-                
-                // Записываем чистый XML-код манифеста прямо в оперативной памяти Linux-сервера
-                manifestFile.text = """<?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="${decodedUrl}" package="com.example.filesercher">
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
-    <application android:allowBackup="true" android:label="Fils ME ᴘʀᴏᴊᴇᴄᴛ" android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
-        <activity android:name="com.example.filesercher.MainActivity" android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
-    </application>
-</manifest>"""
-            }
-        }
     }
 }
 
