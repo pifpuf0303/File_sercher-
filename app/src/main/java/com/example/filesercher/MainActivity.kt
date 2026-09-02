@@ -21,6 +21,7 @@ import android.widget.ProgressBar
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
+import androidx.documentfile.provider.DocumentFile
 import java.io.File
 import java.util.Locale
 import kotlin.concurrent.thread
@@ -40,7 +41,7 @@ class MainActivity : Activity() {
     private var checkedDirsCount = 0
     private val foundFilesList = mutableListOf<FileResult>()
 
-    data class FileResult(val file: File, val matchName: String, val isCache: Boolean)
+    data class FileResult(val file: File, val matchName: String, val isCache: Boolean, val safUri: Uri? = null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -113,7 +114,15 @@ class MainActivity : Activity() {
             if (!cbSearchStorage.isChecked && !cbSearchCache.isChecked) {
                 Toast.makeText(this, "Выберите область поиска!", Toast.LENGTH_SHORT).show()
             } else {
-                if (hasAllFilesPermission()) { runSearch() } else { requestAllFilesPermission() }
+                if (hasAllFilesPermission()) {
+                    if (cbSearchCache.isChecked && !hasDataFolderPermission()) {
+                        requestDataFolderPermission()
+                    } else {
+                        runSearch()
+                    }
+                } else {
+                    requestAllFilesPermission()
+                }
             }
         }
     }
@@ -121,7 +130,33 @@ class MainActivity : Activity() {
     private fun hasAllFilesPermission(): Boolean = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) Environment.isExternalStorageManager() else true
     private fun requestAllFilesPermission() { if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) { val intent = Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION); startActivity(intent) } }
 
-    private fun runSearch() {
+    private fun hasDataFolderPermission(): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return true
+        return contentResolver.persistedUriPermissions.any {
+            it.uri.toString().contains("android%3Adata") && it.isReadPermission
+        }
+    }
+
+    private fun requestDataFolderPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
+                val uri = Uri.parse("content://com.android.externalstorage.documents/document/primary%3AAndroid%2Fdata")
+                putExtra(DocumentsContract.EXTRA_INITIAL_URI, uri)
+            }
+            startActivityForResult(intent, 100)
+        }
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == 100 && resultCode == Activity.RESULT_OK) {
+            data?.data?.let { uri ->
+                contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+                runSearch()
+            }
+        }
+    }
+        private fun runSearch() {
         llResultsContainer.removeAllViews(); foundFilesList.clear(); checkedDirsCount = 0
         val query = etSearchInput.text.toString().trim()
         val currentTargets = if (query.isEmpty()) defaultTargetNames else listOf(query)
@@ -129,16 +164,24 @@ class MainActivity : Activity() {
         thread {
             val rootDir = Environment.getExternalStorageDirectory()
             if (cbSearchStorage.isChecked) { collectFiles(rootDir, currentTargets, false) }
+            
             if (cbSearchCache.isChecked) {
-                val androidDataDir = File(rootDir, "Android/data")
-                if (androidDataDir.exists() && androidDataDir.isDirectory) { collectFiles(androidDataDir, currentTargets, true) }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    val uri = Uri.parse("content://com.android.externalstorage.documents/tree/primary%3AAndroid%2Fdata")
+                    val documentFile = DocumentFile.fromTreeUri(this, uri)
+                    if (documentFile != null && documentFile.isDirectory) {
+                        collectFilesFromSAF(documentFile, currentTargets)
+                    }
+                } else {
+                    val androidDataDir = File(rootDir, "Android/data")
+                    if (androidDataDir.exists() && androidDataDir.isDirectory) { collectFiles(androidDataDir, currentTargets, true) }
+                }
             }
             
-            // СОРТИРОВКА: Сортируем файлы по размеру (от самого большого к меньшему)
             foundFilesList.sortByDescending { it.file.length() }
             
             runOnUiThread {
-                for (item in foundFilesList) { displayFileItem(item.file, item.matchName, item.isCache) }
+                for (item in foundFilesList) { displayFileItem(item.file, item.matchName, item.isCache, item.safUri) }
                 btnScan.isEnabled = true; progressBar.visibility = View.GONE
                 tvStatus.text = "Успешно! Найдено совпадений: ${foundFilesList.size}\nПроверено директорий: $checkedDirsCount"
                 Toast.makeText(this@MainActivity, "Поиск завершён!", Toast.LENGTH_SHORT).show()
@@ -160,24 +203,58 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun displayFileItem(file: File, matchByName: String, isCache: Boolean) {
+    private fun collectFilesFromSAF(docFile: DocumentFile, targets: List<String>) {
+        val files = docFile.listFiles()
+        checkedDirsCount++
+        if (checkedDirsCount % 50 == 0) { runOnUiThread { tvStatus.text = "⚡ Идёт сканирование кэша... [$checkedDirsCount]" } }
+        for (file in files) {
+            val name = file.name ?: continue
+            val matchByName = targets.firstOrNull { target -> name.contains(target, ignoreCase = true) }
+            if (matchByName != null) {
+                val filePath = File(Environment.getExternalStorageDirectory(), "Android/data/" + (docFile.name ?: "") + "/" + name)
+                foundFilesList.add(FileResult(filePath, matchByName, true, file.uri))
+            }
+            if (file.isDirectory && !name.startsWith(".")) {
+                collectFilesFromSAF(file, targets)
+            }
+        }
+    }
+
+    private fun displayFileItem(file: File, matchByName: String, isCache: Boolean, safUri: Uri?) {
         val parentName = file.parentFile?.name ?: ""
         val prefix = if (isCache) "[Кэш: $parentName]" else "[Память]"
         val fileType = file.extension.uppercase(Locale.getDefault()).ifEmpty { "FILE" }
         val bytes = file.length()
         val fileSize = if (bytes >= 1024 * 1024) "${bytes / (1024 * 1024)} МБ" else "${bytes / 1024} КБ"
+        
         val tvFileItem = TextView(this@MainActivity).apply {
-            text = "$prefix Найдено ($matchByName)\n📄 Тип: .$fileType | ⚖️ Вес: $fileSize\n📍 Путь: ${file.absolutePath}\n"; textSize = 13f; setTextColor(Color.parseColor("#00FF66")); setPadding(20, 20, 20, 20)
+            text = "$prefix Найдено ($matchByName)\n📄 Тип: .$fileType | ⚖️ Вес: $fileSize\n📍 Путь: ${file.absolutePath}\n"
+            textSize = 13f
+            setTextColor(Color.parseColor("#00FF66"))
+            setPadding(20, 20, 20, 20)
             val itemShape = GradientDrawable().apply { setColor(Color.parseColor("#1A1A1E")); cornerRadius = 12f; setStroke(1, Color.parseColor("#2C2C35")) }
             background = itemShape
         }
+        
         val params = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(0, 0, 0, 16) }
         tvFileItem.layoutParams = params
-        tvFileItem.setOnClickListener { openFolderDirectly(file) }
+        tvFileItem.setOnClickListener { openFolderDirectly(file, safUri) }
         llResultsContainer.addView(tvFileItem)
     }
 
-    private fun openFolderDirectly(file: File) {
+    private fun openFolderDirectly(file: File, safUri: Uri?) {
+        if (safUri != null) {
+            try {
+                val intent = Intent(Intent.ACTION_VIEW).apply {
+                    setDataAndType(safUri, "*/*")
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                startActivity(intent)
+                return
+            } catch (e: Exception) {
+                // Если SAF-метод не сработал, идем в стандартный фолбэк
+            }
+        }
         try {
             val folder = file.parentFile ?: return
             val relativePath = folder.absolutePath.replace("${Environment.getExternalStorageDirectory().absolutePath}/", "").replace(Environment.getExternalStorageDirectory().absolutePath, "")
