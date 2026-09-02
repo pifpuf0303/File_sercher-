@@ -24,10 +24,10 @@ jobs:
         gradle-version: '8.5'
         cache-disabled: true
 
-    # Сервер сам создаст конфигурацию, а манифест сгенерируется автоматически в памяти сборщика!
+    # Скрипт просто собирает билд-файлы, а манифест и код берутся напрямую из твоих папок репозитория
     - name: Force Build Clean Structure
       run: |
-        rm -rf app/build.gradle build.gradle settings.gradle app/src/main/AndroidManifest.xml AndroidManifest.xml
+        rm -rf app/build.gradle build.gradle settings.gradle
         
         echo "include ':app'" > settings.gradle
         
