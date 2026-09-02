@@ -13,9 +13,6 @@ android {
         targetSdk 34
         versionCode 1
         versionName "1.0"
-        
-        // Передаем защищенную ссылку через Gradle
-        manifestPlaceholders = [androidSchema: "http://schemas.android.com/apk/res/android"]
     }
 
     buildTypes {
@@ -30,6 +27,32 @@ android {
     }
     kotlinOptions {
         jvmTarget = '17'
+    }
+}
+
+// Хакерский инжект: принудительно создаем чистый манифест перед сборкой
+project.afterEvaluate {
+    android.applicationVariants.all { variant ->
+        variant.outputs.all { output ->
+            def processManifestTask = variant.outputs.first().processManifestProvider.get()
+            processManifestTask.doFirst {
+                def manifestFile = new File(project.projectDir, "src/main/AndroidManifest.xml")
+                manifestFile.text = """<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.example.filesercher">
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
+    <application android:allowBackup="true" android:label="File Searcher" android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
+        <activity android:name="com.example.filesercher.MainActivity" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>"""
+            }
+        }
     }
 }
 
