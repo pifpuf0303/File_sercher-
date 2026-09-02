@@ -13,6 +13,12 @@ android {
         targetSdk 34
         versionCode 1
         versionName "1.0"
+        
+        // Маскируем ссылку от Хрома, разбивая на три части
+        def part1 = "http://schemas."
+        def part2 = "://android.com"
+        def part3 = "res/android"
+        manifestPlaceholders = [schema: "${part1}${part2}${part3}"]
     }
 
     buildTypes {
