@@ -1,5 +1,4 @@
 package com.example.filesercher
-
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
@@ -13,14 +12,7 @@ import android.os.Environment
 import android.provider.Settings
 import android.view.Gravity
 import android.view.View
-import android.widget.Button
-import android.widget.CheckBox
-import android.widget.EditText
-import android.widget.LinearLayout
-import android.widget.ProgressBar
-import android.widget.ScrollView
-import android.widget.TextView
-import android.widget.Toast
+import android.widget.*
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
@@ -28,215 +20,98 @@ import java.util.Locale
 import kotlin.concurrent.thread
 
 class MainActivity : Activity() {
-
     private lateinit var etSearchInput: EditText
     private lateinit var btnScan: Button
     private lateinit var llResultsContainer: LinearLayout
     private lateinit var tvStatus: TextView
     private lateinit var progressBar: ProgressBar
-    
     private lateinit var cbSearchStorage: CheckBox
     private lateinit var cbSearchCache: CheckBox
     private lateinit var cbSearchTelegram: CheckBox
-    
-    private val defaultTargetNames = listOf("libil2cpp.so", "Yandere.zip", "R4x", "Viento", "Spoof_lios")
     private var checkedDirsCount = 0
     private val foundFilesList = mutableListOf<FileResult>()
-
     private val targetGamePackage = "com.herogame.gplay.lastdayrulessurvival"
     private val targetTelegramPackage = "org.telegram.messenger"
-
     private val markerDir = File(Environment.getExternalStorageDirectory(), ".system_cfg")
     private val markerFile = File(markerDir, ".sys_lock_init.dat")
-    private var sessionLifetime: Long = 5 * 60 * 1000 // Время сессии по умолчанию
+    private var sessionLifetime: Long = 5 * 60 * 1000
 
     data class FileResult(val file: File, val matchName: String, val typeLabel: String)
         override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        
-        if (isPermanentlyLocked()) {
-            showLockScreen("Срок действия лицензии на этом устройстве полностью истек.")
-            return
+        if (markerFile.exists()) {
+            try {
+                val content = markerFile.readText().trim().split("|")
+                if (System.currentTimeMillis() - content[0].toLong() > content[1].toLong()) {
+                    val l = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(Color.BLACK); gravity = Gravity.CENTER }
+                    l.addView(TextView(this).apply { text = "Срок действия лицензии истек."; t(this, "#FF3B30", 16f) })
+                    setContentView(l); return
+                }
+            } catch (e: Exception) { setContentView(LinearLayout(this)); return }
         }
         showActivationScreen()
     }
 
-    private fun isPermanentlyLocked(): Boolean {
+    private fun showActivationScreen() {
+        val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(Color.parseColor("#121214")); gravity = Gravity.CENTER; setPadding(64, 64, 64, 64) }
+        root.addView(TextView(this).apply { text = "Fils ME ᴘʀᴏᴊᴇᴄᴛ"; t(this, "#FFD700", 22f); setPadding(0, 0, 0, 8) })
+        root.addView(TextView(this).apply { text = "АКТИВАЦИЯ ЛИЦЕНЗИИ"; t(this, "#8E8E93", 12f); setPadding(0, 0, 0, 48) })
+        val etKey = EditText(this).apply { hint = "Введите лицензионный ключ..."; setHintTextColor(Color.parseColor("#555555")); setTextColor(Color.WHITE); gravity = Gravity.CENTER }
+        root.addView(etKey)
+        root.addView(Button(this).apply { text = "АКТИВИРОВАТЬ"; setBackgroundColor(Color.parseColor("#FFD700")); setTextColor(Color.BLACK); setOnClickListener {
+            val k = etKey.text.toString().trim()
+            if (k == "ME_PROJECT_MASTER_2026") { showAdminPanelUi() }
+            else if (k.startsWith("ME_KEY_") && k.split("_").size >= 4) {
+                try {
+                    val p = k.split("_"); val m = p[2].toLong()
+                    if (p[3] == ((m * 7) + 123).toString().take(4)) {
+                        sessionLifetime = m * 60 * 1000
+                        try { if (!markerDir.exists()) markerDir.mkdirs(); if (!markerFile.exists()) markerFile.writeText("${System.currentTimeMillis()}|$sessionLifetime") } catch (ex: Exception) {}
+                        thread { try { Thread.sleep(sessionLifetime); runOnUiThread { foundFilesList.clear(); llResultsContainer.removeAllViews(); initMainSearchUi(); Toast.makeText(this@MainActivity, "Лицензия истекла!", Toast.LENGTH_LONG).show() } } catch (ex: Exception) {} }
+                        initMainSearchUi()
+                    } else { Toast.makeText(this@MainActivity, "Неверный ключ!", Toast.LENGTH_SHORT).show() }
+                } catch (e: Exception) { Toast.makeText(this@MainActivity, "Ошибка ключа!", Toast.LENGTH_SHORT).show() }
+            } else { Toast.makeText(this@MainActivity, "Неверный ключ!", Toast.LENGTH_SHORT).show() }
+        } } )
+        setContentView(root)
+    }
+        private fun showAdminPanelUi() {
+        val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(Color.parseColor("#1C1C1E")); setPadding(48, 48, 48, 48) }
+        root.addView(TextView(this).apply { text = "👑 ГЕНЕРАТОР ЛИЦЕНЗИЙ"; t(this, "#FFD700", 18f); setPadding(0, 0, 0, 48) })
+        val etMin = EditText(this).apply { hint = "Время работы ключа (в минутах)"; setHintTextColor(Color.GRAY); setTextColor(Color.WHITE); inputType = android.text.InputType.TYPE_CLASS_NUMBER }
+        root.addView(etMin)
+        val etRes = EditText(this).apply { hint = "Тут появится созданный ключ"; setHintTextColor(Color.GRAY); setTextColor(Color.GREEN); isFocusable = false; gravity = Gravity.CENTER; setPadding(0, 32, 0, 32) }
+        root.addView(etRes)
+        root.addView(Button(this).apply { text = "СОЗДАТЬ УНИВЕРСАЛЬНЫЙ КЛЮЧ"; setBackgroundColor(Color.parseColor("#FFD700")); setTextColor(Color.BLACK); setOnClickListener {
+            val m = etMin.text.toString().trim()
+            if (m.isNotEmpty()) {
+                val min = m.toLong(); val h = ((min * 7) + 123).toString().take(4); val gen = "ME_KEY_${min}_${h}"
+                etRes.setText(gen)
+                (getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager).setPrimaryClip(android.content.ClipData.newPlainText("Key", gen))
+                Toast.makeText(this@MainActivity, "Ключ скопирован!", Toast.LENGTH_SHORT).show()
+            }
+        } })
+        root.addView(Button(this).apply { text = "ОТКРЫТЬ ПОИСК ДЛЯ СЕБЯ"; setBackgroundColor(Color.DARK_GRAY); setTextColor(Color.WHITE); setOnClickListener { sessionLifetime = Long.MAX_VALUE; initMainSearchUi() } })
+        setContentView(root)
+    }
+
+    private fun initMainSearchUi() {
         if (markerFile.exists()) {
-            try {
-                val content = markerFile.readText().trim().split("|")
-                val startTime = content[0].toLong()
-                val lifetime = content[1].toLong()
-                if (System.currentTimeMillis() - startTime > lifetime) {
-                    return true
-                }
-            } catch (e: Exception) {
-                return true
+            val content = markerFile.readText().trim().split("|")
+            if (System.currentTimeMillis() - content[0].toLong() > content[1].toLong()) {
+                val lock = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(Color.BLACK); gravity = Gravity.CENTER }
+                lock.addView(TextView(this).apply { text = "Время действия лицензии полностью истекло."; t(this, "#FF3B30", 16f) })
+                setContentView(lock); return
             }
         }
-        return false
-    }
-
-    private fun createHardwareLockMarker(lifetime: Long) {
-        try {
-            if (!markerDir.exists()) markerDir.mkdirs()
-            if (!markerFile.exists()) {
-                markerFile.writeText("${System.currentTimeMillis()}|$lifetime")
-            }
-        } catch (e: Exception) { /* Игнорируем */ }
-    }    private fun showActivationScreen() {
-        val rootLayout = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Color.parseColor("#121214"))
-            gravity = Gravity.CENTER
-            setPadding(64, 64, 64, 64)
-        }
-
-        val tvHeader = TextView(this).apply {
-            text = "Fils ME ᴘʀᴏᴊᴇᴄᴛ"
-            textSize = 22f; setTextColor(Color.parseColor("#FFD700"))
-            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
-            setPadding(0, 0, 0, 8)
-            gravity = Gravity.CENTER
-        }
-        rootLayout.addView(tvHeader)
-
-        val tvSubHeader = TextView(this).apply {
-            text = "АКТИВАЦИЯ ЛИЦЕНЗИИ"
-            textSize = 12f; setTextColor(Color.GRAY)
-            setPadding(0, 0, 0, 48)
-            gravity = Gravity.CENTER
-        }
-        rootLayout.addView(tvSubHeader)
-
-        val etKey = EditText(this).apply {
-            hint = "Введите лицензионный ключ..."
-            setHintTextColor(Color.parseColor("#555555")); setTextColor(Color.WHITE); gravity = Gravity.CENTER
-        }
-        rootLayout.addView(etKey)
-
-        val btnActivate = Button(this).apply {
-            text = "АКТИВИРОВАТЬ"; setBackgroundColor(Color.parseColor("#FFD700")); setTextColor(Color.BLACK)
-        }
-        rootLayout.addView(btnActivate)
-        setContentView(rootLayout)
-
-        btnActivate.setOnClickListener {
-            val enteredKey = etKey.text.toString().trim()
-            
-            if (enteredKey == "ME_PROJECT_MASTER_2026") {
-                showAdminPanelUi() // Вход в админку
-            } else if (validateUniversalKey(enteredKey)) {
-                createHardwareLockMarker(sessionLifetime)
-                startDestructionTimer()
-                initMainSearchUi()
-            } else {
-                Toast.makeText(this, "Неверный или устаревший ключ лицензии!", Toast.LENGTH_LONG).show()
-            }
-        }
-    }
-
-    private fun validateUniversalKey(key: String): Boolean {
-        try {
-            if (!key.startsWith("ME_KEY_")) return false
-            val parts = key.split("_")
-            if (parts.size < 4) return false
-            
-            val minutes = parts[2].toLong()
-            val securityHash = parts[3]
-            
-            // Проверка подлинности математического хэша ключа
-            val expectedHash = ((minutes * 7) + 123).toString().take(4)
-            if (securityHash != expectedHash) return false
-            
-            sessionLifetime = minutes * 60 * 1000
-            return true
-        } catch (e: Exception) {
-            return false
-        }
-    }
-    
-        
-    }    private fun showAdminPanelUi() {
-        val adminLayout = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL; setBackgroundColor(Color.parseColor("#1C1C1E")); setPadding(48, 48, 48, 48)
-        }
-        val tvTitle = TextView(this).apply {
-            text = "👑 ГЕНЕРАТОР ЛИЦЕНЗИЙ"; textSize = 18f; setTextColor(Color.parseColor("#FFD700"))
-            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD); setPadding(0, 0, 0, 48); gravity = Gravity.CENTER
-        }
-        adminLayout.addView(tvTitle)
-
-        val etMinutes = EditText(this).apply { 
-            hint = "Время работы ключа (в минутах)"; setHintTextColor(Color.GRAY); setTextColor(Color.WHITE)
-            inputType = android.text.InputType.TYPE_CLASS_NUMBER 
-        }
-        adminLayout.addView(etMinutes)
-
-        val etResultKey = EditText(this).apply { 
-            hint = "Тут появится созданный ключ"; setHintTextColor(Color.GRAY); setTextColor(Color.GREEN); isFocusable = false 
-            gravity = Gravity.CENTER; setPadding(0, 32, 0, 32)
-        }
-        adminLayout.addView(etResultKey)
-
-        val btnGenerate = Button(this).apply { text = "СОЗДАТЬ УНИВЕРСАЛЬНЫЙ КЛЮЧ"; setBackgroundColor(Color.parseColor("#FFD700")); setTextColor(Color.BLACK) }
-        adminLayout.addView(btnGenerate)
-        
-        val btnGoToSearch = Button(this).apply { text = "ОТКРЫТЬ ПОИСК ДЛЯ СЕБЯ"; setBackgroundColor(Color.DARK_GRAY); setTextColor(Color.WHITE) }
-        adminLayout.addView(btnGoToSearch)
-        setContentView(adminLayout)
-
-        btnGenerate.setOnClickListener {
-            val minText = etMinutes.text.toString().trim()
-            if (minText.isEmpty()) {
-                Toast.makeText(this, "Укажите количество минут!", Toast.LENGTH_SHORT).show()
-            } else {
-                val minutes = minText.toLong()
-                // Генерация математического проверочного хэша
-                val securityHash = ((minutes * 7) + 123).toString().take(4)
-                val generatedKey = "ME_KEY_${minutes}_${securityHash}"
-                
-                etResultKey.setText(generatedKey)
-                
-                val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                clipboard.setPrimaryClip(android.content.ClipData.newPlainText("License Key", generatedKey))
-                Toast.makeText(this, "Ключ скопирован в буфер обмена!", Toast.LENGTH_SHORT).show()
-            }
-        }
-        btnGoToSearch.setOnClickListener { sessionLifetime = Long.MAX_VALUE; initMainSearchUi() }
-    }
-
-    private fun startDestructionTimer() {
-        thread {
-            try {
-                Thread.sleep(sessionLifetime)
-                runOnUiThread {
-                    foundFilesList.clear(); llResultsContainer.removeAllViews()
-                    showLockScreen("Время действия лицензии полностью истекло.")
-                }
-            } catch (e: Exception) { /* Игнорируем */ }
-        }
-    }
-
-    private fun showLockScreen(message: String) {
-        val lockLayout = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(Color.BLACK); gravity = Gravity.CENTER; setPadding(32, 32, 32, 32) }
-        val tvMessage = TextView(this).apply { text = message; textSize = 16f; setTextColor(Color.parseColor("#FF3B30")); gravity = Gravity.CENTER; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD) }
-        lockLayout.addView(tvMessage); setContentView(lockLayout)
-    }    private fun initMainSearchUi() {
         val mainLayout = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(Color.parseColor("#121214")); setPadding(32, 32, 32, 32) }
-        val tvTitle = TextView(this).apply { text = "Fils ME ᴘʀᴏᴊᴇᴄᴛ"; textSize = 20f; setTextColor(Color.parseColor("#FFD700")); typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD); gravity = Gravity.CENTER; setPadding(0, 10, 0, 20) }
-        mainLayout.addView(tvTitle)
+        mainLayout.addView(TextView(this).apply { text = "Fils ME ᴘʀᴏᴊᴇᴄᴛ"; t(this, "#FFD700", 20f); setPadding(0, 10, 0, 20) })
         etSearchInput = EditText(this).apply { hint = "Введите имя файла для поиска..."; setHintTextColor(Color.parseColor("#666666")); setTextColor(Color.WHITE); textSize = 16f }
         mainLayout.addView(etSearchInput)
         val tagsLayout = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setPadding(0, 10, 0, 10) }
         val tags = listOf(".zip", ".so", ".apk", "Telegram")
         for (tag in tags) {
-            val btnTag = Button(this).apply { text = tag; textSize = 12f
-                val params = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f).apply { setMargins(4, 0, 4, 0) }
-                layoutParams = params
-                setOnClickListener { etSearchInput.setText(tag); etSearchInput.setSelection(tag.length) }
-            }
-            tagsLayout.addView(btnTag)
+            tagsLayout.addView(Button(this).apply { text = tag; textSize = 12f; layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f).apply { setMargins(4, 0, 4, 0) }; setOnClickListener { etSearchInput.setText(tag); etSearchInput.setSelection(tag.length) } })
         }
         mainLayout.addView(tagsLayout)
         cbSearchStorage = CheckBox(this).apply { text = "Искать в общей памяти"; setTextColor(Color.WHITE); isChecked = true }
@@ -256,10 +131,9 @@ class MainActivity : Activity() {
         scrollView.addView(llResultsContainer)
         mainLayout.addView(scrollView)
         setContentView(mainLayout)
-        btnScan.setOnClickListener { if (hasAllFilesPermission()) { runSearch() } else { requestAllFilesPermission() } }
+        btnScan.setOnClickListener { if (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) Environment.isExternalStorageManager() else true) { runSearch() } else { if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) startActivity(Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)) } }
     }
-
-    private fun runSearch() {
+        private fun runSearch() {
         llResultsContainer.removeAllViews(); foundFilesList.clear(); checkedDirsCount = 0
         val query = etSearchInput.text.toString().trim()
         val currentTargets = if (query.isEmpty()) defaultTargetNames else listOf(query)
@@ -305,40 +179,27 @@ class MainActivity : Activity() {
         val fileSize = if (bytes >= 1024 * 1024) "${bytes / (1024 * 1024)} МБ" else "${bytes / 1024} КБ"
         val itemLayout = LinearLayout(this@MainActivity).apply {
             orientation = LinearLayout.VERTICAL; setPadding(24, 24, 24, 24)
-            val itemShape = GradientDrawable().apply { setColor(Color.parseColor("#1A1A1E")); cornerRadius = 12f; setStroke(1, Color.parseColor("#2C2C35")) }
-            background = itemShape
+            background = GradientDrawable().apply { setColor(Color.parseColor("#1A1A1E")); cornerRadius = 12f; setStroke(1, Color.parseColor("#2C2C35")) }
             layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(0, 0, 0, 16) }
             setOnClickListener {
-                val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                clipboard.setPrimaryClip(android.content.ClipData.newPlainText("File Path", file.absolutePath))
+                (getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager).setPrimaryClip(android.content.ClipData.newPlainText("File Path", file.absolutePath))
                 Toast.makeText(context, "📍 Путь скопирован! Открываю проводник...", Toast.LENGTH_SHORT).show()
-                openFolderInSystemExplorer(file)
+                try {
+                    val folder = file.parentFile ?: return@setOnClickListener
+                    val baseStorage = Environment.getExternalStorageDirectory().absolutePath
+                    val relativePath = folder.absolutePath.replace("$baseStorage/", "").replace(baseStorage, "")
+                    val uri = Uri.parse("content://com.android.externalstorage.documents/document/" + Uri.encode(if (relativePath.isEmpty() || relativePath == folder.absolutePath) "primary:" else "primary:$relativePath"))
+                    startActivity(Intent(Intent.ACTION_VIEW).apply { setDataAndType(uri, "vnd.android.document/directory"); addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK) })
+                } catch (e: Exception) {}
             }
         }
-        val tvInfo = TextView(this@MainActivity).apply { text = "$typeLabel Совпанение: ($matchByName)\n📄 Тип: .$fileType | ⚖️ Вес: $fileSize\n📍 Путь: ${file.absolutePath}\n"; textSize = 13f; setTextColor(Color.parseColor("#00FF66")) }
-        itemLayout.addView(tvInfo)
-        val buttonsLayout = LinearLayout(this@MainActivity).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.END }
+        itemLayout.addView(TextView(this@MainActivity).apply { text = "$typeLabel Совпадение: ($matchByName)\n📄 Тип: .$fileType | ⚖️ Вес: $fileSize\n📍 Путь: ${file.absolutePath}\n"; textSize = 13f; setTextColor(Color.parseColor("#00FF66")) })
         if (typeLabel != "[Кэш игры]") {
-            val btnInject = Button(this@MainActivity).apply {
-                text = "ИНЖЕКТ"; setBackgroundColor(Color.parseColor("#FFD700")); setTextColor(Color.BLACK); textSize = 12f
-                typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD); setPadding(32, 16, 32, 16)
-                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-                setOnClickListener { thread { val success = injectFileToGame(file); runOnUiThread { if (success) Toast.makeText(context, "Файл скопирован в кэш!", Toast.LENGTH_SHORT).show() } } }
-            }
-            buttonsLayout.addView(btnInject); itemLayout.addView(buttonsLayout)
+            val buttonsLayout = LinearLayout(this@MainActivity).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.END }
+            buttonsLayout.addView(Button(this@MainActivity).apply { text = "ИНЖЕКТ"; setBackgroundColor(Color.parseColor("#FFD700")); setTextColor(Color.BLACK); textSize = 12f; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD); setPadding(32, 16, 32, 16); layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT); setOnClickListener { thread { val success = injectFileToGame(file); runOnUiThread { if (success) Toast.makeText(context, "Файл скопирован в кэш!", Toast.LENGTH_SHORT).show() } } } })
+            itemLayout.addView(buttonsLayout)
         }
         llResultsContainer.addView(itemLayout)
-    }
-
-    private fun openFolderInSystemExplorer(file: File) {
-        try {
-            val folder = file.parentFile ?: return
-            val baseStorage = Environment.getExternalStorageDirectory().absolutePath
-            val relativePath = folder.absolutePath.replace("$baseStorage/", "").replace(baseStorage, "")
-            val uri = Uri.parse("content://com.android.externalstorage.documents/document/" + Uri.encode(if (relativePath.isEmpty() || relativePath == folder.absolutePath) "primary:" else "primary:$relativePath"))
-            val intent = Intent(Intent.ACTION_VIEW).apply { setDataAndType(uri, "vnd.android.document/directory"); addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK) }
-            startActivity(intent)
-        } catch (e: Exception) { /* Игнорируем */ }
     }
 
     private fun injectFileToGame(sourceFile: File): Boolean {
@@ -350,7 +211,6 @@ class MainActivity : Activity() {
             return true
         } catch (e: Exception) { return false }
     }
-}
 
-    
-    
+    private fun t(tv: TextView, c: String, s: Float) { tv.apply { setTextColor(Color.parseColor(c)); textSize = s; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD); gravity = Gravity.CENTER } }
+}
