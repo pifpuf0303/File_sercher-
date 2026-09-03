@@ -9,6 +9,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
+import android.provider.DocumentsContract
 import android.provider.Settings
 import android.view.Gravity
 import android.view.View
@@ -173,7 +174,8 @@ class MainActivity : Activity() {
                 collectFiles(file, targets, label)
             }
         }
-    }    private fun displayFileItem(file: File, matchByName: String, typeLabel: String) {
+    }
+        private fun displayFileItem(file: File, matchByName: String, typeLabel: String) {
         val fileType = file.extension.uppercase(Locale.getDefault()).ifEmpty { "FILE" }
         val bytes = file.length()
         val fileSize = if (bytes >= 1024 * 1024) "${bytes / (1024 * 1024)} МБ" else "${bytes / 1024} КБ"
@@ -185,6 +187,16 @@ class MainActivity : Activity() {
             background = itemShape
             val params = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(0, 0, 0, 16) }
             layoutParams = params
+            
+            // Клик по плашке: Копирует путь + Открывает системный проводник
+            setOnClickListener {
+                val clipboard = getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                val clip = android.content.ClipData.newPlainText("File Path", file.absolutePath)
+                clipboard.setPrimaryClip(clip)
+                Toast.makeText(context, "📍 Путь скопирован! Открываю проводник...", Toast.LENGTH_SHORT).show()
+                
+                openFolderInSystemExplorer(file)
+            }
         }
 
         val tvInfo = TextView(this@MainActivity).apply {
@@ -228,6 +240,34 @@ class MainActivity : Activity() {
         llResultsContainer.addView(itemLayout)
     }
 
+    private fun openFolderInSystemExplorer(file: File) {
+        try {
+            val folder = file.parentFile ?: return
+            val baseStorage = Environment.getExternalStorageDirectory().absolutePath
+            val relativePath = folder.absolutePath.replace("$baseStorage/", "").replace(baseStorage, "")
+            
+            val authority = "com.android.externalstorage.documents"
+            val documentId = if (relativePath.isEmpty() || relativePath == folder.absolutePath) "primary:" else "primary:$relativePath"
+            
+            val uri = Uri.parse("content://com.android.externalstorage.documents/document/" + Uri.encode(documentId))
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(uri, "vnd.android.document/directory")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            startActivity(intent)
+        } catch (e: Exception) {
+            try {
+                val fallbackIntent = Intent(Intent.ACTION_VIEW).apply {
+                    setDataAndType(Uri.parse("content://com.android.externalstorage.documents/root/primary"), "vnd.android.document/directory")
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                startActivity(fallbackIntent)
+            } catch (ex: Exception) {
+                Toast.makeText(this, "Не удалось открыть системный проводник.", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
     private fun injectFileToGame(sourceFile: File): Boolean {
         try {
             val destDir = File(Environment.getExternalStorageDirectory(), "Android/data/$targetGamePackage/files")
@@ -249,5 +289,3 @@ class MainActivity : Activity() {
         }
     }
 }
-
-    
