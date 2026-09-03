@@ -174,16 +174,14 @@ class MainActivity : Activity() {
             }
         }
     }
-
-    private fun displayFileItem(file: File, matchByName: String, typeLabel: String) {
+        private fun displayFileItem(file: File, matchByName: String, typeLabel: String) {
         val fileType = file.extension.uppercase(Locale.getDefault()).ifEmpty { "FILE" }
         val bytes = file.length()
         val fileSize = if (bytes >= 1024 * 1024) "${bytes / (1024 * 1024)} МБ" else "${bytes / 1024} КБ"
         
-        // Корневой контейнер элемента результата
         val itemLayout = LinearLayout(this@MainActivity).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(20, 20, 20, 20)
+            setPadding(24, 24, 24, 24)
             val itemShape = GradientDrawable().apply { setColor(Color.parseColor("#1A1A1E")); cornerRadius = 12f; setStroke(1, Color.parseColor("#2C2C35")) }
             background = itemShape
             val params = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(0, 0, 0, 16) }
@@ -197,20 +195,22 @@ class MainActivity : Activity() {
         }
         itemLayout.addView(tvInfo)
 
-        // Контейнер для кнопок управления
         val buttonsLayout = LinearLayout(this@MainActivity).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.END
+            val params = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+            layoutParams = params
         }
 
-        // КНОПКА 1: ИНЖЕКТ (Доступна только если файл снаружи кэша игры)
         if (typeLabel != "[Кэш игры]") {
             val btnInject = Button(this@MainActivity).apply {
                 text = "ИНЖЕКТ"
                 setBackgroundColor(Color.parseColor("#FFD700"))
                 setTextColor(Color.BLACK)
-                textSize = 11f
-                val params = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, 80).apply { setMargins(0, 0, 16, 0) }
+                textSize = 12f
+                typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+                setPadding(32, 16, 32, 16)
+                val params = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
                 layoutParams = params
                 setOnClickListener {
                     thread {
@@ -223,32 +223,12 @@ class MainActivity : Activity() {
                 }
             }
             buttonsLayout.addView(btnInject)
+            itemLayout.addView(buttonsLayout)
         }
-
-        // КНОПКА 2: УДАЛИТЬ
-        val btnDelete = Button(this@MainActivity).apply {
-            text = "УДАЛИТЬ"
-            setBackgroundColor(Color.parseColor("#FF3B30"))
-            setTextColor(Color.WHITE)
-            textSize = 11f
-            val params = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, 80)
-            layoutParams = params
-            setOnClickListener {
-                if (file.exists() && file.delete()) {
-                    Toast.makeText(context, "Файл удален!", Toast.LENGTH_SHORT).show()
-                    llResultsContainer.removeView(itemLayout)
-                } else {
-                    Toast.makeText(context, "Не удалось удалить файл.", Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-        buttonsLayout.addView(btnDelete)
-        itemLayout.addView(buttonsLayout)
 
         llResultsContainer.addView(itemLayout)
     }
 
-    // Внутренняя функция быстрого копирования файла в игровую папку /files/
     private fun injectFileToGame(sourceFile: File): Boolean {
         try {
             val destDir = File(Environment.getExternalStorageDirectory(), "Android/data/$targetGamePackage/files")
