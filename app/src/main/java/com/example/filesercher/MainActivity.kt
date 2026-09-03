@@ -36,11 +36,11 @@ class MainActivity : Activity() {
     private lateinit var cbSearchTelegram: CheckBox
     
     private var checkedDirsCount = 0
-    private var sessionLifetime: Long = 300000 // По умолчанию 5 минут
+    private var sessionLifetime: Long = 300000
     private val foundFilesList = mutableListOf<FileResult>()
 
     data class FileResult(val file: File, val matchName: String, val typeLabel: String)
-        override fun onCreate(savedInstanceState: Bundle?) {
+    override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         if (markerFile.exists()) {
             try {
@@ -113,10 +113,10 @@ class MainActivity : Activity() {
                 Toast.makeText(this@MainActivity, "Ключ скопирован!", Toast.LENGTH_SHORT).show()
             }
         } })
-        root.addView(Button(this).apply { text = "ОТКРЫТЬ ПОИСК ДЛЯ СЕБЯ"; setBackgroundColor(Color.DARK_GRAY); setTextColor(Color.WHITE); setOnClickListener { sessionLifetime = Long.MAX_VALUE; initMainSearchUi() } })
+        root.addView(Button(this).apply { text = "ОТКРЫТЬ ПОИСК ДЛЯ СЕБЯ"; setBackgroundColor(Color.parseColor("#3A3A3C")); setTextColor(Color.WHITE); setOnClickListener { sessionLifetime = Long.MAX_VALUE; initMainSearchUi() } })
         setContentView(root)
     }
-        private fun initMainSearchUi() {
+  private fun initMainSearchUi() {
         if (markerFile.exists()) {
             try {
                 val txt = markerFile.readText().trim()
@@ -238,4 +238,4 @@ class MainActivity : Activity() {
     }
 
     private fun t(tv: TextView, c: String, s: Float) { tv.apply { setTextColor(Color.parseColor(c)); textSize = s; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD); gravity = Gravity.CENTER } }
-}
+}  
