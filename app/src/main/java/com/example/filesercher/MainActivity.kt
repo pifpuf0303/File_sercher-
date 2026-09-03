@@ -1,4 +1,4 @@
-package com.example.filesercher
+package com.example.filesercherme
 
 import android.app.Activity
 import android.content.Intent
@@ -173,8 +173,7 @@ class MainActivity : Activity() {
                 collectFiles(file, targets, label)
             }
         }
-    }
-        private fun displayFileItem(file: File, matchByName: String, typeLabel: String) {
+    }    private fun displayFileItem(file: File, matchByName: String, typeLabel: String) {
         val fileType = file.extension.uppercase(Locale.getDefault()).ifEmpty { "FILE" }
         val bytes = file.length()
         val fileSize = if (bytes >= 1024 * 1024) "${bytes / (1024 * 1024)} МБ" else "${bytes / 1024} КБ"
@@ -250,3 +249,5 @@ class MainActivity : Activity() {
         }
     }
 }
+
+    
