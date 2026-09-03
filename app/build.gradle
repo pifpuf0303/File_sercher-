@@ -4,15 +4,15 @@ plugins {
 }
 
 android {
-    namespace 'com.example.filesercherme'
+    namespace 'com.example.filesercher'
     compileSdk 34
 
     defaultConfig {
-        applicationId "com.example.filesercherme"
+        applicationId "com.example.filesercher"
         minSdk 26
         targetSdk 34
-        versionCode 24 // Версия 24 для полной перезаписи профиля
-        versionName "24.0"
+        versionCode 25 // Поднимаем версию до 25, чтобы сбросить любые старые кэши
+        versionName "25.0"
     }
 
     buildTypes {
@@ -29,36 +29,6 @@ android {
         jvmTarget = '17'
     }
 }
-// Стабильный серверный сборщик манифеста в обход Хрома под новый пакет
-project.afterEvaluate {
-    android.applicationVariants.all { variant ->
-        variant.outputs.all { output ->
-            def processManifestTask = variant.outputs.first().processManifestProvider.get()
-            processManifestTask.doFirst {
-                def charList = ['h','t','t','p',':','/','/','s','c','h','e','m','a','s','.','a','n','d','r','o','i','d','.','c','o','m','/','a','p','k','/','r','e','s','/','a','n','d','r','o','i','d']
-                def realUrl = ""
-                for(ch in charList) { realUrl += ch }
-                
-                def manifestFile = new File(project.projectDir, "src/main/AndroidManifest.xml")
-                manifestFile.text = """<?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="${realUrl}" package="com.example.filesercherme">
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
-    <application android:allowBackup="true" android:label="Fils ME ᴘʀＯＪＥＣＴ" android:icon="@mipmap/ic_launcher" android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
-        <activity android:name="com.example.filesercherme.MainActivity" android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
-    </application>
-</manifest>"""
-            }
-        }
-    }
-}
-
 dependencies {
     implementation 'androidx.core:core-ktx:1.12.0'
     implementation 'androidx.appcompat:appcompat:1.6.1'
