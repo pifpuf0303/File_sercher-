@@ -1,4 +1,4 @@
-package com.example.filesercherme
+package com.example.filesercher
 
 import android.app.Activity
 import android.content.Intent
