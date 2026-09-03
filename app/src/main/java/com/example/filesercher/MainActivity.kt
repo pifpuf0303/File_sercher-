@@ -23,9 +23,10 @@ class MainActivity : Activity() {
     private val defaultTargetNames = listOf("libil2cpp.so", "Yandere.zip", "R4x", "Viento", "Spoof_lios")
     private val targetGamePackage = "com.herogame.gplay.lastdayrulessurvival"
     private val targetTelegramPackage = "org.telegram.messenger"
-    private val markerDir = File(Environment.getExternalStorageDirectory(), ".system_cfg")
-    private val markerFile = File(markerDir, ".sys_lock_init.dat")
-    private val usedKeysFile = File(markerDir, ".used_keys.dat")
+    
+    // Внутреннее изолированное хранилище (автоматически стирается при удалении приложения!)
+    private lateinit var markerFile: File
+    private lateinit var usedKeysFile: File
     
     private lateinit var etSearchInput: EditText
     private lateinit var btnScan: Button
@@ -43,6 +44,10 @@ class MainActivity : Activity() {
     data class FileResult(val file: File, val matchName: String, val typeLabel: String)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        markerFile = File(filesDir, "sys_app_start.dat")
+        usedKeysFile = File(filesDir, "used_keys.dat")
+
         if (markerFile.exists()) {
             try {
                 val txt = markerFile.readText().trim()
@@ -51,11 +56,29 @@ class MainActivity : Activity() {
                     if (System.currentTimeMillis() > expireTime) {
                         showLockLayout("Срок действия лицензии этого устройства полностью истек.")
                         return
+                    } else {
+                        val remainingTime = expireTime - System.currentTimeMillis()
+                        startDestructionTimer(remainingTime)
+                        initMainSearchUi()
+                        return
                     }
                 }
             } catch (e: Exception) { showLockLayout("Ошибка проверки лицензии.") ; return }
         }
         showActivationScreen()
+    }
+
+    private fun startDestructionTimer(timeToWait: Long) {
+        thread {
+            try {
+                Thread.sleep(timeToWait)
+                runOnUiThread {
+                    foundFilesList.clear()
+                    llResultsContainer.removeAllViews()
+                    showLockLayout("Время действия лицензии полностью истекло.")
+                }
+            } catch (e: Exception) {}
+        }
     }
 
     private fun showLockLayout(msg: String) {
@@ -75,9 +98,6 @@ class MainActivity : Activity() {
             if (k == "ME_PROJECT_MASTER_2026") { 
                 showAdminPanelUi() 
             } else {
-                if (!markerDir.exists()) markerDir.mkdirs()
-                
-                // Проверяем жесткий черный список ключей прямо на диске телефона
                 if (usedKeysFile.exists() && usedKeysFile.readText().contains(k)) {
                     Toast.makeText(this@MainActivity, "Этот ключ уже был активирован!", Toast.LENGTH_LONG).show()
                 } else if (k.startsWith("ME_KEY_") && k.contains("_")) {
@@ -91,14 +111,11 @@ class MainActivity : Activity() {
                             if (code == check) {
                                 sessionLifetime = min * 60 * 1000
                                 val expireCalculated = System.currentTimeMillis() + sessionLifetime
-                                
-                                // МГНОВЕННАЯ ЗАПИСЬ НА ДИСК ДО ОТКРЫТИЯ ПОИСКА
                                 try { 
                                     markerFile.writeText(expireCalculated.toString())
-                                    usedKeysFile.appendText("$k\n") // Сжигаем ключ навсегда
+                                    usedKeysFile.appendText("$k\n")
                                 } catch (ex: Exception) {}
-                                
-                                thread { try { Thread.sleep(sessionLifetime); runOnUiThread { foundFilesList.clear(); llResultsContainer.removeAllViews(); showLockLayout("Время действия лицензии полностью истекло.") } } catch (ex: Exception) {} }
+                                startDestructionTimer(sessionLifetime)
                                 initMainSearchUi()
                             } else { Toast.makeText(this@MainActivity, "Неверный ключ!", Toast.LENGTH_SHORT).show() }
                         } else { Toast.makeText(this@MainActivity, "Неверный ключ!", Toast.LENGTH_SHORT).show() }
@@ -130,17 +147,6 @@ class MainActivity : Activity() {
         root.addView(Button(this).apply { text = "ОТКРЫТЬ ПОИСК ДЛЯ СЕБЯ"; setBackgroundColor(Color.parseColor("#3A3A3C")); setTextColor(Color.WHITE); setOnClickListener { sessionLifetime = Long.MAX_VALUE; initMainSearchUi() } })
         setContentView(root)
     }private fun initMainSearchUi() {
-        if (markerFile.exists()) {
-            try {
-                val txt = markerFile.readText().trim()
-                if (txt.isNotEmpty()) {
-                    if (System.currentTimeMillis() > txt.toLong()) {
-                        showLockLayout("Время действия лицензии полностью истекло.")
-                        return
-                    }
-                }
-            } catch (e: Exception) {}
-        }
         val mainLayout = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(Color.parseColor("#121214")); setPadding(32, 32, 32, 32) }
         mainLayout.addView(TextView(this).apply { text = "Fils ME ᴘʀᴏᴊᴇᴄᴛ"; t(this, "#FFD700", 20f); setPadding(0, 10, 0, 20) })
         etSearchInput = EditText(this).apply { hint = "Введите имя файла для поиска..."; setHintTextColor(Color.parseColor("#666666")); setTextColor(Color.WHITE); textSize = 16f }
