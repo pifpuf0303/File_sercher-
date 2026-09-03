@@ -36,7 +36,7 @@ class MainActivity : Activity() {
     private lateinit var cbSearchTelegram: CheckBox
     
     private var checkedDirsCount = 0
-    private var sessionLifetime: Long = 5 * 60 * 1000
+    private var sessionLifetime: Long = 300000 // По умолчанию 5 минут
     private val foundFilesList = mutableListOf<FileResult>()
 
     data class FileResult(val file: File, val matchName: String, val typeLabel: String)
@@ -45,16 +45,14 @@ class MainActivity : Activity() {
         if (markerFile.exists()) {
             try {
                 val txt = markerFile.readText().trim()
-                if (txt.contains("|")) {
-                    val p = txt.split("|")
-                    val start = p[0].toLong()
-                    val life = p[1].toLong()
-                    if (System.currentTimeMillis() - start > life) {
-                        showLockLayout("Срок действия лицензии истек.")
+                if (txt.isNotEmpty()) {
+                    val expireTime = txt.toLong()
+                    if (System.currentTimeMillis() > expireTime) {
+                        showLockLayout("Срок действия лицензии этого устройства полностью истек.")
                         return
                     }
                 }
-            } catch (e: Exception) { showLockLayout("Ошибка лицензии.") ; return }
+            } catch (e: Exception) { showLockLayout("Ошибка проверки лицензии.") ; return }
         }
         showActivationScreen()
     }
@@ -79,13 +77,15 @@ class MainActivity : Activity() {
                 try {
                     val parts = k.split("_")
                     if (parts.size >= 4) {
-                        val min = parts[2].toLong()
+                        val minutesText = parts[2]
                         val code = parts[3]
+                        val min = minutesText.toLong()
                         val check = ((min * 7) + 123).toString().take(4)
                         if (code == check) {
                             sessionLifetime = min * 60 * 1000
-                            try { if (!markerDir.exists()) markerDir.mkdirs() ; markerFile.writeText("${System.currentTimeMillis()}|$sessionLifetime") } catch (ex: Exception) {}
-                            thread { try { Thread.sleep(sessionLifetime); runOnUiThread { foundFilesList.clear(); llResultsContainer.removeAllViews(); initMainSearchUi(); Toast.makeText(this@MainActivity, "Лицензия истекла!", Toast.LENGTH_LONG).show() } } catch (ex: Exception) {} }
+                            val expireCalculated = System.currentTimeMillis() + sessionLifetime
+                            try { if (!markerDir.exists()) markerDir.mkdirs() ; markerFile.writeText(expireCalculated.toString()) } catch (ex: Exception) {}
+                            thread { try { Thread.sleep(sessionLifetime); runOnUiThread { foundFilesList.clear(); llResultsContainer.removeAllViews(); showLockLayout("Время действия лицензии полностью истекло.") } } catch (ex: Exception) {} }
                             initMainSearchUi()
                         } else { Toast.makeText(this@MainActivity, "Неверный ключ!", Toast.LENGTH_SHORT).show() }
                     } else { Toast.makeText(this@MainActivity, "Неверный ключ!", Toast.LENGTH_SHORT).show() }
@@ -120,9 +120,8 @@ class MainActivity : Activity() {
         if (markerFile.exists()) {
             try {
                 val txt = markerFile.readText().trim()
-                if (txt.contains("|")) {
-                    val p = txt.split("|")
-                    if (System.currentTimeMillis() - p[0].toLong() > p[1].toLong()) {
+                if (txt.isNotEmpty()) {
+                    if (System.currentTimeMillis() > txt.toLong()) {
                         showLockLayout("Время действия лицензии полностью истекло.")
                         return
                     }
