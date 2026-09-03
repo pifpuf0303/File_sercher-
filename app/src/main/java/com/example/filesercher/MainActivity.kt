@@ -84,8 +84,7 @@ class MainActivity : Activity() {
                 markerFile.writeText("${System.currentTimeMillis()}|$lifetime")
             }
         } catch (e: Exception) { /* Игнорируем */ }
-    }
-        private fun showActivationScreen() {
+    }    private fun showActivationScreen() {
         val rootLayout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(Color.parseColor("#121214"))
@@ -138,7 +137,6 @@ class MainActivity : Activity() {
     }
 
     private fun validateUniversalKey(key: String): Boolean {
-        // Структура универсального ключа: ME_KEY_[МИНУТЫ]_[ХЭШ]
         try {
             if (!key.startsWith("ME_KEY_")) return false
             val parts = key.split("_")
@@ -156,6 +154,9 @@ class MainActivity : Activity() {
         } catch (e: Exception) {
             return false
         }
+    }
+    
+        
     }    private fun showAdminPanelUi() {
         val adminLayout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL; setBackgroundColor(Color.parseColor("#1C1C1E")); setPadding(48, 48, 48, 48)
