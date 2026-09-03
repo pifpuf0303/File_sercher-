@@ -25,6 +25,7 @@ class MainActivity : Activity() {
     private val targetTelegramPackage = "org.telegram.messenger"
     private val markerDir = File(Environment.getExternalStorageDirectory(), ".system_cfg")
     private val markerFile = File(markerDir, ".sys_lock_init.dat")
+    private val usedKeysFile = File(markerDir, ".used_keys.dat")
     
     private lateinit var etSearchInput: EditText
     private lateinit var btnScan: Button
@@ -73,24 +74,37 @@ class MainActivity : Activity() {
             val k = etKey.text.toString().trim()
             if (k == "ME_PROJECT_MASTER_2026") { 
                 showAdminPanelUi() 
-            } else if (k.startsWith("ME_KEY_") && k.contains("_")) {
-                try {
-                    val parts = k.split("_")
-                    if (parts.size >= 4) {
-                        val minutesText = parts[2]
-                        val code = parts[3]
-                        val min = minutesText.toLong()
-                        val check = ((min * 7) + 123).toString().take(4)
-                        if (code == check) {
-                            sessionLifetime = min * 60 * 1000
-                            val expireCalculated = System.currentTimeMillis() + sessionLifetime
-                            try { if (!markerDir.exists()) markerDir.mkdirs() ; markerFile.writeText(expireCalculated.toString()) } catch (ex: Exception) {}
-                            thread { try { Thread.sleep(sessionLifetime); runOnUiThread { foundFilesList.clear(); llResultsContainer.removeAllViews(); showLockLayout("Время действия лицензии полностью истекло.") } } catch (ex: Exception) {} }
-                            initMainSearchUi()
+            } else {
+                if (!markerDir.exists()) markerDir.mkdirs()
+                
+                // Проверяем жесткий черный список ключей прямо на диске телефона
+                if (usedKeysFile.exists() && usedKeysFile.readText().contains(k)) {
+                    Toast.makeText(this@MainActivity, "Этот ключ уже был активирован!", Toast.LENGTH_LONG).show()
+                } else if (k.startsWith("ME_KEY_") && k.contains("_")) {
+                    try {
+                        val parts = k.split("_")
+                        if (parts.size >= 4) {
+                            val minutesText = parts[2]
+                            val code = parts[3]
+                            val min = minutesText.toLong()
+                            val check = ((min * 7) + 123).toString().take(4)
+                            if (code == check) {
+                                sessionLifetime = min * 60 * 1000
+                                val expireCalculated = System.currentTimeMillis() + sessionLifetime
+                                
+                                // МГНОВЕННАЯ ЗАПИСЬ НА ДИСК ДО ОТКРЫТИЯ ПОИСКА
+                                try { 
+                                    markerFile.writeText(expireCalculated.toString())
+                                    usedKeysFile.appendText("$k\n") // Сжигаем ключ навсегда
+                                } catch (ex: Exception) {}
+                                
+                                thread { try { Thread.sleep(sessionLifetime); runOnUiThread { foundFilesList.clear(); llResultsContainer.removeAllViews(); showLockLayout("Время действия лицензии полностью истекло.") } } catch (ex: Exception) {} }
+                                initMainSearchUi()
+                            } else { Toast.makeText(this@MainActivity, "Неверный ключ!", Toast.LENGTH_SHORT).show() }
                         } else { Toast.makeText(this@MainActivity, "Неверный ключ!", Toast.LENGTH_SHORT).show() }
-                    } else { Toast.makeText(this@MainActivity, "Неверный ключ!", Toast.LENGTH_SHORT).show() }
-                } catch (e: Exception) { Toast.makeText(this@MainActivity, "Ошибка ключа!", Toast.LENGTH_SHORT).show() }
-            } else { Toast.makeText(this@MainActivity, "Неверный ключ!", Toast.LENGTH_SHORT).show() }
+                    } catch (e: Exception) { Toast.makeText(this@MainActivity, "Ошибка ключа!", Toast.LENGTH_SHORT).show() }
+                } else { Toast.makeText(this@MainActivity, "Неверный ключ!", Toast.LENGTH_SHORT).show() }
+            }
         } } )
         setContentView(root)
     }
@@ -115,8 +129,7 @@ class MainActivity : Activity() {
         } })
         root.addView(Button(this).apply { text = "ОТКРЫТЬ ПОИСК ДЛЯ СЕБЯ"; setBackgroundColor(Color.parseColor("#3A3A3C")); setTextColor(Color.WHITE); setOnClickListener { sessionLifetime = Long.MAX_VALUE; initMainSearchUi() } })
         setContentView(root)
-    }
-  private fun initMainSearchUi() {
+    }private fun initMainSearchUi() {
         if (markerFile.exists()) {
             try {
                 val txt = markerFile.readText().trim()
@@ -238,4 +251,4 @@ class MainActivity : Activity() {
     }
 
     private fun t(tv: TextView, c: String, s: Float) { tv.apply { setTextColor(Color.parseColor(c)); textSize = s; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD); gravity = Gravity.CENTER } }
-}  
+}
