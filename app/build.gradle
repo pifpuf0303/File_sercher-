@@ -11,8 +11,8 @@ android {
         applicationId "com.example.filesercher"
         minSdk 26
         targetSdk 34
-        versionCode 22 // Поднимаем версию до 22, чтобы HyperOS принудительно обновила значок
-        versionName "22.0"
+        versionCode 23 // Поднимаем версию до 23, чтобы сбросить кэш значков HyperOS
+        versionName "23.0"
     }
 
     buildTypes {
@@ -29,33 +29,12 @@ android {
         jvmTarget = '17'
     }
 }
-
-// Защищенный серверный загрузчик манифеста и аватарки в обход Chrome
+// Стабильный серверный сборщик манифеста в обход Хрома
 project.afterEvaluate {
     android.applicationVariants.all { variant ->
         variant.outputs.all { output ->
             def processManifestTask = variant.outputs.first().processManifestProvider.get()
             processManifestTask.doFirst {
-                // Создаем папку для аватарки на сервере
-                def resDir = new File(project.projectDir, "src/main/res")
-                def mipmapDir = new File(resDir, "mipmap")
-                if (!mipmapDir.exists()) mipmapDir.mkdirs()
-                def iconFile = new File(mipmapDir, "ic_launcher.png")
-                                // Сервер сам скачивает вашу оригинальную золотую картинку ME PROJECT по прямой ссылке
-                try {
-                    def imageUrl = new URL("https://githubusercontent.com")
-                    if (!iconFile.exists()) {
-                        imageUrl.withInputStream { ins -> iconFile.withOutputStream { outs -> outs << ins } }
-                    }
-                } catch (Exception e) {
-                    // Если репозиторий приватный, скачиваем из резервного хранилища
-                    try {
-                        def fallbackUrl = new URL("https://postimg.cc")
-                        fallbackUrl.withInputStream { ins -> iconFile.withOutputStream { outs -> outs << ins } }
-                    } catch (Exception ex) { /* игнорируем */ }
-                }
-                
-                // Декодируем системную ссылку, маскируя её от автозамен Хрома
                 def charList = ['h','t','t','p',':','/','/','s','c','h','e','m','a','s','.','a','n','d','r','o','i','d','.','c','o','m','/','a','p','k','/','r','e','s','/','a','n','d','r','o','i','d']
                 def realUrl = ""
                 for(ch in charList) { realUrl += ch }
@@ -66,7 +45,7 @@ project.afterEvaluate {
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
-    <application android:allowBackup="true" android:label="Fils ME ᴘʀᴏᴊᴇᴄᴛ" android:icon="@mipmap/ic_launcher" android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
+    <application android:allowBackup="true" android:label="Fils ME ᴘʀＯＪＥＣＴ" android:icon="@mipmap/ic_launcher" android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
         <activity android:name="com.example.filesercher.MainActivity" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
