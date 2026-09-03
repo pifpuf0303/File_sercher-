@@ -11,8 +11,8 @@ android {
         applicationId "com.example.filesercher"
         minSdk 26
         targetSdk 34
-        versionCode 25 // Поднимаем версию до 25, чтобы сбросить любые старые кэши
-        versionName "25.0"
+        versionCode 27 // Поднимаем версию до 25, чтобы сбросить любые старые кэши
+        versionName "27.0"
     }
 
     buildTypes {
