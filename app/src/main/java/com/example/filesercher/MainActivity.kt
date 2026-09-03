@@ -20,6 +20,12 @@ import java.util.Locale
 import kotlin.concurrent.thread
 
 class MainActivity : Activity() {
+    private val defaultTargetNames = listOf("libil2cpp.so", "Yandere.zip", "R4x", "Viento", "Spoof_lios")
+    private val targetGamePackage = "com.herogame.gplay.lastdayrulessurvival"
+    private val targetTelegramPackage = "org.telegram.messenger"
+    private val markerDir = File(Environment.getExternalStorageDirectory(), ".system_cfg")
+    private val markerFile = File(markerDir, ".sys_lock_init.dat")
+    
     private lateinit var etSearchInput: EditText
     private lateinit var btnScan: Button
     private lateinit var llResultsContainer: LinearLayout
@@ -28,13 +34,10 @@ class MainActivity : Activity() {
     private lateinit var cbSearchStorage: CheckBox
     private lateinit var cbSearchCache: CheckBox
     private lateinit var cbSearchTelegram: CheckBox
+    
     private var checkedDirsCount = 0
-    private val foundFilesList = mutableListOf<FileResult>()
-    private val targetGamePackage = "com.herogame.gplay.lastdayrulessurvival"
-    private val targetTelegramPackage = "org.telegram.messenger"
-    private val markerDir = File(Environment.getExternalStorageDirectory(), ".system_cfg")
-    private val markerFile = File(markerDir, ".sys_lock_init.dat")
     private var sessionLifetime: Long = 5 * 60 * 1000
+    private val foundFilesList = mutableListOf<FileResult>()
 
     data class FileResult(val file: File, val matchName: String, val typeLabel: String)
         override fun onCreate(savedInstanceState: Bundle?) {
