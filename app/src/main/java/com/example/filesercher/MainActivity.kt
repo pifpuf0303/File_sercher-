@@ -44,15 +44,25 @@ class MainActivity : Activity() {
         super.onCreate(savedInstanceState)
         if (markerFile.exists()) {
             try {
-                val content = markerFile.readText().trim().split("|")
-                if (System.currentTimeMillis() - content[0].toLong() > content[1].toLong()) {
-                    val l = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(Color.BLACK); gravity = Gravity.CENTER }
-                    l.addView(TextView(this).apply { text = "Срок действия лицензии истек."; t(this, "#FF3B30", 16f) })
-                    setContentView(l); return
+                val txt = markerFile.readText().trim()
+                if (txt.contains("|")) {
+                    val p = txt.split("|")
+                    val start = p[0].toLong()
+                    val life = p[1].toLong()
+                    if (System.currentTimeMillis() - start > life) {
+                        showLockLayout("Срок действия лицензии истек.")
+                        return
+                    }
                 }
-            } catch (e: Exception) { setContentView(LinearLayout(this)); return }
+            } catch (e: Exception) { showLockLayout("Ошибка лицензии.") ; return }
         }
         showActivationScreen()
+    }
+
+    private fun showLockLayout(msg: String) {
+        val l = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(Color.BLACK); gravity = Gravity.CENTER }
+        l.addView(TextView(this).apply { text = msg; t(this, "#FF3B30", 16f) })
+        setContentView(l)
     }
 
     private fun showActivationScreen() {
@@ -63,22 +73,29 @@ class MainActivity : Activity() {
         root.addView(etKey)
         root.addView(Button(this).apply { text = "АКТИВИРОВАТЬ"; setBackgroundColor(Color.parseColor("#FFD700")); setTextColor(Color.BLACK); setOnClickListener {
             val k = etKey.text.toString().trim()
-            if (k == "ME_PROJECT_MASTER_2026") { showAdminPanelUi() }
-            else if (k.startsWith("ME_KEY_") && k.split("_").size >= 4) {
+            if (k == "ME_PROJECT_MASTER_2026") { 
+                showAdminPanelUi() 
+            } else if (k.startsWith("ME_KEY_") && k.contains("_")) {
                 try {
-                    val p = k.split("_"); val m = p[2].toLong()
-                    if (p[3] == ((m * 7) + 123).toString().take(4)) {
-                        sessionLifetime = m * 60 * 1000
-                        try { if (!markerDir.exists()) markerDir.mkdirs(); if (!markerFile.exists()) markerFile.writeText("${System.currentTimeMillis()}|$sessionLifetime") } catch (ex: Exception) {}
-                        thread { try { Thread.sleep(sessionLifetime); runOnUiThread { foundFilesList.clear(); llResultsContainer.removeAllViews(); initMainSearchUi(); Toast.makeText(this@MainActivity, "Лицензия истекла!", Toast.LENGTH_LONG).show() } } catch (ex: Exception) {} }
-                        initMainSearchUi()
+                    val parts = k.split("_")
+                    if (parts.size >= 4) {
+                        val min = parts[2].toLong()
+                        val code = parts[3]
+                        val check = ((min * 7) + 123).toString().take(4)
+                        if (code == check) {
+                            sessionLifetime = min * 60 * 1000
+                            try { if (!markerDir.exists()) markerDir.mkdirs() ; markerFile.writeText("${System.currentTimeMillis()}|$sessionLifetime") } catch (ex: Exception) {}
+                            thread { try { Thread.sleep(sessionLifetime); runOnUiThread { foundFilesList.clear(); llResultsContainer.removeAllViews(); initMainSearchUi(); Toast.makeText(this@MainActivity, "Лицензия истекла!", Toast.LENGTH_LONG).show() } } catch (ex: Exception) {} }
+                            initMainSearchUi()
+                        } else { Toast.makeText(this@MainActivity, "Неверный ключ!", Toast.LENGTH_SHORT).show() }
                     } else { Toast.makeText(this@MainActivity, "Неверный ключ!", Toast.LENGTH_SHORT).show() }
                 } catch (e: Exception) { Toast.makeText(this@MainActivity, "Ошибка ключа!", Toast.LENGTH_SHORT).show() }
             } else { Toast.makeText(this@MainActivity, "Неверный ключ!", Toast.LENGTH_SHORT).show() }
         } } )
         setContentView(root)
     }
-        private fun showAdminPanelUi() {
+
+    private fun showAdminPanelUi() {
         val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(Color.parseColor("#1C1C1E")); setPadding(48, 48, 48, 48) }
         root.addView(TextView(this).apply { text = "👑 ГЕНЕРАТОР ЛИЦЕНЗИЙ"; t(this, "#FFD700", 18f); setPadding(0, 0, 0, 48) })
         val etMin = EditText(this).apply { hint = "Время работы ключа (в минутах)"; setHintTextColor(Color.GRAY); setTextColor(Color.WHITE); inputType = android.text.InputType.TYPE_CLASS_NUMBER }
@@ -88,7 +105,9 @@ class MainActivity : Activity() {
         root.addView(Button(this).apply { text = "СОЗДАТЬ УНИВЕРСАЛЬНЫЙ КЛЮЧ"; setBackgroundColor(Color.parseColor("#FFD700")); setTextColor(Color.BLACK); setOnClickListener {
             val m = etMin.text.toString().trim()
             if (m.isNotEmpty()) {
-                val min = m.toLong(); val h = ((min * 7) + 123).toString().take(4); val gen = "ME_KEY_${min}_${h}"
+                val min = m.toLong()
+                val h = ((min * 7) + 123).toString().take(4)
+                val gen = "ME_KEY_${min}_${h}"
                 etRes.setText(gen)
                 (getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager).setPrimaryClip(android.content.ClipData.newPlainText("Key", gen))
                 Toast.makeText(this@MainActivity, "Ключ скопирован!", Toast.LENGTH_SHORT).show()
@@ -97,15 +116,18 @@ class MainActivity : Activity() {
         root.addView(Button(this).apply { text = "ОТКРЫТЬ ПОИСК ДЛЯ СЕБЯ"; setBackgroundColor(Color.DARK_GRAY); setTextColor(Color.WHITE); setOnClickListener { sessionLifetime = Long.MAX_VALUE; initMainSearchUi() } })
         setContentView(root)
     }
-
-    private fun initMainSearchUi() {
+        private fun initMainSearchUi() {
         if (markerFile.exists()) {
-            val content = markerFile.readText().trim().split("|")
-            if (System.currentTimeMillis() - content[0].toLong() > content[1].toLong()) {
-                val lock = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(Color.BLACK); gravity = Gravity.CENTER }
-                lock.addView(TextView(this).apply { text = "Время действия лицензии полностью истекло."; t(this, "#FF3B30", 16f) })
-                setContentView(lock); return
-            }
+            try {
+                val txt = markerFile.readText().trim()
+                if (txt.contains("|")) {
+                    val p = txt.split("|")
+                    if (System.currentTimeMillis() - p[0].toLong() > p[1].toLong()) {
+                        showLockLayout("Время действия лицензии полностью истекло.")
+                        return
+                    }
+                }
+            } catch (e: Exception) {}
         }
         val mainLayout = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(Color.parseColor("#121214")); setPadding(32, 32, 32, 32) }
         mainLayout.addView(TextView(this).apply { text = "Fils ME ᴘʀᴏᴊᴇᴄᴛ"; t(this, "#FFD700", 20f); setPadding(0, 10, 0, 20) })
@@ -136,7 +158,8 @@ class MainActivity : Activity() {
         setContentView(mainLayout)
         btnScan.setOnClickListener { if (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) Environment.isExternalStorageManager() else true) { runSearch() } else { if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) startActivity(Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)) } }
     }
-        private fun runSearch() {
+
+    private fun runSearch() {
         llResultsContainer.removeAllViews(); foundFilesList.clear(); checkedDirsCount = 0
         val query = etSearchInput.text.toString().trim()
         val currentTargets = if (query.isEmpty()) defaultTargetNames else listOf(query)
