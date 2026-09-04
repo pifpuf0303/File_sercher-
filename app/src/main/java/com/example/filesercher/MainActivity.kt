@@ -104,8 +104,8 @@ class MainActivity : Activity() {
                     try {
                         val parts = k.split("_")
                         if (parts.size >= 4) {
-                            val minutesText = parts[2]
-                            val code = parts[3]
+                            val minutesText = parts(2)
+                            val code = parts(3)
                             val min = minutesText.toLong()
                             val check = ((min * 7) + 123).toString().take(4)
                             if (code == check) {
