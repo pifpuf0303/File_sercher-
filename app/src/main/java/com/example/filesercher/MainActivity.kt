@@ -24,7 +24,6 @@ class MainActivity : Activity() {
     private val targetGamePackage = "com.herogame.gplay.lastdayrulessurvival"
     private val targetTelegramPackage = "org.telegram.messenger"
     
-    // Внутреннее изолированное хранилище (автоматически стирается при удалении приложения!)
     private lateinit var markerFile: File
     private lateinit var usedKeysFile: File
     
@@ -42,7 +41,7 @@ class MainActivity : Activity() {
     private val foundFilesList = mutableListOf<FileResult>()
 
     data class FileResult(val file: File, val matchName: String, val typeLabel: String)
-    override fun onCreate(savedInstanceState: Bundle?) {
+        override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
         markerFile = File(filesDir, "sys_app_start.dat")
@@ -86,10 +85,9 @@ class MainActivity : Activity() {
         l.addView(TextView(this).apply { text = msg; t(this, "#FF3B30", 16f) })
         setContentView(l)
     }
-
-    private fun showActivationScreen() {
+        private fun showActivationScreen() {
         val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(Color.parseColor("#121214")); gravity = Gravity.CENTER; setPadding(64, 64, 64, 64) }
-        root.addView(TextView(this).apply { text = "Fils ME ᴘʀᴏᴊᴇᴄᴛ"; t(this, "#FFD700", 22f); setPadding(0, 0, 0, 8) })
+        root.addView(TextView(this).apply { text = "Fils ME ᴘʀᴏᴊᴇｃｔ"; t(this, "#FFD700", 22f); setPadding(0, 0, 0, 8) })
         root.addView(TextView(this).apply { text = "АКТИВАЦИЯ ЛИЦЕНЗИИ"; t(this, "#8E8E93", 12f); setPadding(0, 0, 0, 48) })
         val etKey = EditText(this).apply { hint = "Введите лицензионный ключ..."; setHintTextColor(Color.parseColor("#555555")); setTextColor(Color.WHITE); gravity = Gravity.CENTER }
         root.addView(etKey)
@@ -104,8 +102,8 @@ class MainActivity : Activity() {
                     try {
                         val parts = k.split("_")
                         if (parts.size >= 4) {
-                            val minutesText = parts(2)
-                            val code = parts(3)
+                            val minutesText = parts.get(2)
+                            val code = parts.get(3)
                             val min = minutesText.toLong()
                             val check = ((min * 7) + 123).toString().take(4)
                             if (code == check) {
@@ -117,10 +115,10 @@ class MainActivity : Activity() {
                                 } catch (ex: Exception) {}
                                 startDestructionTimer(sessionLifetime)
                                 initMainSearchUi()
-                            } else { Toast.makeText(this@MainActivity, "Неверный ключ!", Toast.LENGTH_SHORT).show() }
-                        } else { Toast.makeText(this@MainActivity, "Неверный ключ!", Toast.LENGTH_SHORT).show() }
-                    } catch (e: Exception) { Toast.makeText(this@MainActivity, "Ошибка ключа!", Toast.LENGTH_SHORT).show() }
-                } else { Toast.makeText(this@MainActivity, "Неверный ключ!", Toast.LENGTH_SHORT).show() }
+                            } else { Toast.makeText(this@MainActivity, "Неверный хэш ключа!", Toast.LENGTH_SHORT).show() }
+                        } else { Toast.makeText(this@MainActivity, "Неверная структура ключа!", Toast.LENGTH_SHORT).show() }
+                    } catch (e: Exception) { Toast.makeText(this@MainActivity, "Ошибка парсинга лицензии!", Toast.LENGTH_SHORT).show() }
+                } else { Toast.makeText(this@MainActivity, "Неверный формат ключа!", Toast.LENGTH_SHORT).show() }
             }
         } } )
         setContentView(root)
@@ -146,9 +144,10 @@ class MainActivity : Activity() {
         } })
         root.addView(Button(this).apply { text = "ОТКРЫТЬ ПОИСК ДЛЯ СЕБЯ"; setBackgroundColor(Color.parseColor("#3A3A3C")); setTextColor(Color.WHITE); setOnClickListener { sessionLifetime = Long.MAX_VALUE; initMainSearchUi() } })
         setContentView(root)
-    }private fun initMainSearchUi() {
+    }
+        private fun initMainSearchUi() {
         val mainLayout = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(Color.parseColor("#121214")); setPadding(32, 32, 32, 32) }
-        mainLayout.addView(TextView(this).apply { text = "Fils ME ᴘʀᴏᴊᴇᴄᴛ"; t(this, "#FFD700", 20f); setPadding(0, 10, 0, 20) })
+        mainLayout.addView(TextView(this).apply { text = "Fils ME ᴘʀᴏᴊᴇｃｔ"; t(this, "#FFD700", 20f); setPadding(0, 10, 0, 20) })
         etSearchInput = EditText(this).apply { hint = "Введите имя файла для поиска..."; setHintTextColor(Color.parseColor("#666666")); setTextColor(Color.WHITE); textSize = 16f }
         mainLayout.addView(etSearchInput)
         val tagsLayout = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setPadding(0, 10, 0, 10) }
