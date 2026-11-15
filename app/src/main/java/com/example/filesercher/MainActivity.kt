@@ -1,4 +1,5 @@
 package com.example.filesercher
+
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
@@ -28,8 +29,6 @@ class MainActivity : Activity() {
         "com.herogame.gplay.lastdayrulessurvival"
     private val targetTelegramPackage = 
         "org.telegram.messenger"
-       // 🔴 ЗАМЕНИ ЭТИ ЦИФРЫ НА СВОЙ ПАРОЛЬ ИЗ 100 ЗНАКОВ
-    private val HARDCODED_PASSWORD = "1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890"
 
     private lateinit var etSearchInput: EditText
     private lateinit var btnScan: Button
@@ -51,82 +50,54 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        showActivationScreen()
-    }
-
-    private fun showActivationScreen() {
-        val root = LinearLayout(this).apply { 
-            orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Color.parseColor("#121214"))
-            gravity = Gravity.CENTER
-            setPadding(64, 64, 64, 64) 
-        }
-        root.addView(TextView(this).apply { 
-            text = "Fils ME ᴘʀᴏᴊᴇｃｔ"
-            t(this, "#FFD700", 22f)
-            setPadding(0, 0, 0, 8) 
-        })
-        root.addView(TextView(this).apply { 
-            text = "ВХОД В ПРИЛОЖЕНИЕ"
-            t(this, "#8E8E93", 12f)
-            setPadding(0, 0, 0, 48) 
-        })
-        val etKey = EditText(this).apply { 
-            hint = "Введите 100-значный пароль..."
-            setHintTextColor(Color.parseColor("#555555"))
-            setTextColor(Color.WHITE)
-            gravity = Gravity.CENTER
-            inputType = android.text.InputType.TYPE_CLASS_NUMBER
-        }
-        root.addView(etKey)
-        root.addView(Button(this).apply { 
-            text = "ВОЙТИ"
-            setBackgroundColor(Color.parseColor("#FFD700"))
-            setTextColor(Color.BLACK)
-            setOnClickListener {
-                val entered = etKey.text.toString().trim()
-                if (entered == HARDCODED_PASSWORD) { 
-                    initMainSearchUi() 
-                } else {
-                    Toast.makeText(
-                        this@MainActivity, 
-                        "Неверный пароль доступа!", 
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
-            } 
-        })
-        setContentView(root)
+        // Сразу запускаем главный экран без пароля
+        initMainSearchUi()
     }
         private fun initMainSearchUi() {
         val mainLayout = LinearLayout(this).apply { 
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Color.parseColor("#121214"))
+            setBackgroundColor(Color.parseColor("#09090B"))
             setPadding(32, 32, 32, 32) 
         }
+        
         mainLayout.addView(TextView(this).apply { 
-            text = "Fils ME ᴘʀᴏᴊᴇｃｔ"
-            t(this, "#FFD700", 20f)
-            setPadding(0, 10, 0, 20) 
+            text = "👺 GOBLIN FILES SEARCHER"
+            t(this, "#FF1E1E", 20f)
+            setPadding(0, 10, 0, 24) 
         })
+        
         etSearchInput = EditText(this).apply { 
             hint = "Введите имя файла..."
-            setHintTextColor(Color.parseColor("#666666"))
+            setHintTextColor(Color.parseColor("#777777"))
             setTextColor(Color.WHITE)
-            textSize = 16f 
+            textSize = 16f
+            setPadding(24, 24, 24, 24)
+            background = GradientDrawable().apply {
+                setColor(Color.parseColor("#141417"))
+                cornerRadius = 12f
+                setStroke(2, Color.parseColor("#FF1E1E"))
+            }
         }
         mainLayout.addView(etSearchInput)
+        
         val tagsLayout = LinearLayout(this).apply { 
             orientation = LinearLayout.HORIZONTAL
-            setPadding(0, 10, 0, 10) 
+            setPadding(0, 16, 0, 16) 
         }
         val tags = listOf(".zip", ".so", ".apk", "Telegram")
         for (tag in tags) {
             tagsLayout.addView(Button(this).apply { 
-                text = tag; textSize = 12f
+                text = tag
+                textSize = 12f
+                setTextColor(Color.WHITE)
+                background = GradientDrawable().apply {
+                    setColor(Color.parseColor("#1C1C21"))
+                    cornerRadius = 8f
+                    setStroke(1, Color.parseColor("#8A0000"))
+                }
                 layoutParams = LinearLayout.LayoutParams(
                     0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f
-                ).apply { setMargins(4, 0, 4, 0) }
+                ).apply { setMargins(6, 0, 6, 0) }
                 setOnClickListener { 
                     etSearchInput.setText(tag)
                     etSearchInput.setSelection(tag.length) 
@@ -134,31 +105,51 @@ class MainActivity : Activity() {
             })
         }
         mainLayout.addView(tagsLayout)
+        
         cbSearchStorage = CheckBox(this).apply { 
             text = "Искать в общей памяти"
             setTextColor(Color.WHITE); isChecked = true 
         }
         mainLayout.addView(cbSearchStorage)
+        
         cbSearchCache = CheckBox(this).apply { 
             text = "Искать в кэше игры"
             setTextColor(Color.WHITE); isChecked = true 
         }
         mainLayout.addView(cbSearchCache)
+        
         cbSearchTelegram = CheckBox(this).apply { 
             text = "Искать в Telegram"
             setTextColor(Color.WHITE); isChecked = true 
         }
         mainLayout.addView(cbSearchTelegram)
-        btnScan = Button(this).apply { text = "ГЛУБОКИЙ ПОИСК" }
+        
+        btnScan = Button(this).apply { 
+            text = "ГЛУБОКИЙ ПОИСК"
+            setTextColor(Color.WHITE)
+            typeface = Typeface.DEFAULT_BOLD
+            background = GradientDrawable().apply {
+                setColor(Color.parseColor("#D90429"))
+                cornerRadius = 12f
+            }
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { setMargins(0, 16, 0, 8) }
+        }
         mainLayout.addView(btnScan)
+        
         progressBar = ProgressBar(this).apply { visibility = View.GONE }
         mainLayout.addView(progressBar)
+        
         tvStatus = TextView(this).apply { 
-            text = "Приложение готово"; textSize = 14f
-            setTextColor(Color.parseColor("#8E8E93"))
-            setPadding(0, 16, 0, 16) 
+            text = "Система Goblin готова к поиску"
+            textSize = 14f
+            setTextColor(Color.parseColor("#39FF14"))
+            setPadding(0, 12, 0, 16) 
         }
         mainLayout.addView(tvStatus)
+        
         val scrollView = ScrollView(this)
         llResultsContainer = LinearLayout(this).apply { 
             orientation = LinearLayout.VERTICAL 
@@ -166,6 +157,7 @@ class MainActivity : Activity() {
         scrollView.addView(llResultsContainer)
         mainLayout.addView(scrollView)
         setContentView(mainLayout)
+        
         btnScan.setOnClickListener { 
             val hasPerm = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) 
                 Environment.isExternalStorageManager() else true
@@ -175,9 +167,8 @@ class MainActivity : Activity() {
                 }
             } 
         }
-    }
-
-    private fun runSearch() {
+        }
+            private fun runSearch() {
         llResultsContainer.removeAllViews()
         foundFilesList.clear()
         checkedDirsCount = 0
@@ -213,7 +204,7 @@ class MainActivity : Activity() {
                 }
                 btnScan.isEnabled = true
                 progressBar.visibility = View.GONE
-                tvStatus.text = "Успешно! Найдено совпадений: ${foundFilesList.size}"
+                tvStatus.text = "Найдено совпадений: ${foundFilesList.size}"
             }
         }
     }
@@ -240,47 +231,49 @@ class MainActivity : Activity() {
         val fileType = file.extension.uppercase(Locale.getDefault()).ifEmpty { "FILE" }
         val bytes = file.length()
         val fileSize = if (bytes >= 1024 * 1024) "${bytes / (1024 * 1024)} МБ" else "${bytes / 1024} КБ"
+        
         val itemLayout = LinearLayout(this@MainActivity).apply {
-            orientation = LinearLayout.VERTICAL; setPadding(24, 24, 24, 24)
+            orientation = LinearLayout.VERTICAL
+            setPadding(24, 24, 24, 24)
             background = GradientDrawable().apply { 
-                setColor(Color.parseColor("#1A1A1E"))
+                setColor(Color.parseColor("#141417"))
                 cornerRadius = 12f
-                setStroke(1, Color.parseColor("#2C2C35")) 
+                setStroke(2, Color.parseColor("#8A0000")) 
             }
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, 
                 LinearLayout.LayoutParams.WRAP_CONTENT
             ).apply { setMargins(0, 0, 0, 16) }
+            
             setOnClickListener {
                 val clipManager = getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                 clipManager.setPrimaryClip(android.content.ClipData.newPlainText("File Path", file.absolutePath))
-                Toast.makeText(context, "📍 Путь скопирован! Открываю проводник...", Toast.LENGTH_SHORT).show()
-                try {
-                    val folder = file.parentFile ?: return@setOnClickListener
-                    val baseStorage = Environment.getExternalStorageDirectory().absolutePath
-                    val relativePath = folder.absolutePath.replace("$baseStorage/", "").replace(baseStorage, "")
-                    val encPath = Uri.encode(if (relativePath.isEmpty() || relativePath == folder.absolutePath) "primary:" else "primary:$relativePath")
-                    val uri = Uri.parse("content://com.android.externalstorage.documents/document/$encPath")
-                    startActivity(Intent(Intent.ACTION_VIEW).apply { 
-                        setDataAndType(uri, "vnd.android.document/directory")
-                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK) 
-                    })
-                } catch (e: Exception) {}
+                Toast.makeText(context, "📍 Путь скопирован! Открываю папку...", Toast.LENGTH_SHORT).show()
+                openFolderInExplorer(file)
             }
         }
+        
         itemLayout.addView(TextView(this@MainActivity).apply { 
             text = "$typeLabel Совпадение: ($matchByName)\n📄 Тип: .$fileType | ⚖️ Вес: $fileSize\n📍 Путь: ${file.absolutePath}\n"
-            textSize = 13f; setTextColor(Color.parseColor("#00FF66")) 
+            textSize = 13f
+            setTextColor(Color.parseColor("#39FF14")) 
         })
+        
         if (typeLabel != "[Кэш игры]") {
             val buttonsLayout = LinearLayout(this@MainActivity).apply { 
-                orientation = LinearLayout.HORIZONTAL; gravity = Gravity.END 
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.END 
             }
             buttonsLayout.addView(Button(this@MainActivity).apply { 
-                text = "ИНЖЕКТ"; setBackgroundColor(Color.parseColor("#FFD700"))
-                setTextColor(Color.BLACK); textSize = 12f
-                typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+                text = "ИНЖЕКТ"
+                setTextColor(Color.WHITE)
+                textSize = 12f
+                typeface = Typeface.DEFAULT_BOLD
                 setPadding(32, 16, 32, 16)
+                background = GradientDrawable().apply {
+                    setColor(Color.parseColor("#D90429"))
+                    cornerRadius = 8f
+                }
                 setOnClickListener { 
                     thread { 
                         val success = injectFileToGame(file)
@@ -293,6 +286,32 @@ class MainActivity : Activity() {
             itemLayout.addView(buttonsLayout)
         }
         llResultsContainer.addView(itemLayout)
+    }
+
+    private fun openFolderInExplorer(file: File) {
+        val folder = file.parentFile ?: return
+        val baseStorage = Environment.getExternalStorageDirectory().absolutePath
+        val relativePath = folder.absolutePath.replace("$baseStorage/", "").replace(baseStorage, "")
+        val docId = if (relativePath.isEmpty() || relativePath == folder.absolutePath) "primary:" else "primary:$relativePath"
+        
+        try {
+            val uri = Uri.parse("content://com.android.externalstorage.documents/document/" + Uri.encode(docId))
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(uri, "vnd.android.document/directory")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            startActivity(intent)
+        } catch (e: Exception) {
+            try {
+                val fallbackIntent = Intent(Intent.ACTION_GET_CONTENT).apply {
+                    setDataAndType(Uri.parse(folder.absolutePath), "*/*")
+                    addCategory(Intent.CATEGORY_OPENABLE)
+                }
+                startActivity(Intent.createChooser(fallbackIntent, "Выберите проводник"))
+            } catch (ex: Exception) {
+                Toast.makeText(this, "Не удалось открыть проводник автоматически", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     private fun injectFileToGame(sourceFile: File): Boolean {
@@ -317,7 +336,7 @@ class MainActivity : Activity() {
         tv.apply { 
             setTextColor(Color.parseColor(c))
             textSize = s
-            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER 
         } 
     }
