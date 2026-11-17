@@ -10,6 +10,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
+import android.provider.MediaStore
 import android.provider.Settings
 import android.view.Gravity
 import android.view.View
@@ -23,10 +24,14 @@ import java.util.Locale
 import kotlin.concurrent.thread
 
 class MainActivity : Activity() {
+    // Твои целевые файлы и ключевые слова для истории загрузок
     private val defaultTargetNames = listOf(
         "libil2cpp.so", "Yandere.zip", 
         "R4x", "Viento", "Spoof_lios"
     )
+    // Расширения, которые считаем целевыми при сканировании истории
+    private val targetExtensions = listOf(".so", ".zip", ".apk")
+    
     private val targetGamePackage = 
         "com.herogame.gplay.lastdayrulessurvival"
     private val targetTelegramPackage = 
@@ -70,7 +75,7 @@ class MainActivity : Activity() {
         })
         
         etSearchInput = EditText(this).apply { 
-            hint = "Введите имя или расширение..."
+            hint = "Введите имя или тег..."
             setHintTextColor(Color.parseColor("#777777"))
             setTextColor(Color.WHITE)
             textSize = 16f
@@ -87,7 +92,7 @@ class MainActivity : Activity() {
             orientation = LinearLayout.HORIZONTAL
             setPadding(0, 12, 0, 12) 
         }
-        val tags = listOf("Все", ".zip", ".so", ".apk", "Telegram")
+        val tags = listOf("Все", "libil2cpp", ".zip", ".so", ".apk")
         for (tag in tags) {
             tagsLayout.addView(Button(this).apply { 
                 text = tag; textSize = 11f; setTextColor(Color.WHITE)
@@ -149,7 +154,7 @@ class MainActivity : Activity() {
         mainLayout.addView(btnScan)
 
         btnRecentDownloads = Button(this).apply { 
-            text = "📥 ВСЕ СКАЧАННЫЕ (С ФИЛЬТРОМ)"
+            text = "📥 ИСТОРИЯ ЗАГРУЗОК (ЦЕЛЕВЫЕ)"
             setTextColor(Color.parseColor("#39FF14"))
             typeface = Typeface.DEFAULT_BOLD
             background = GradientDrawable().apply {
@@ -189,7 +194,7 @@ class MainActivity : Activity() {
         }
         btnRecentDownloads.setOnClickListener { 
             isDownloadsMode = true
-            checkPermAndRun { runDownloadsScan() } 
+            checkPermAndRun { runTargetDownloadsHistory() } 
         }
     }
 
@@ -202,7 +207,7 @@ class MainActivity : Activity() {
             startActivity(Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION))
         }
     }
-       private fun runSearch() {
+        private fun runSearch() {
         llResultsContainer.removeAllViews()
         foundFilesList.clear()
         checkedDirsCount = 0
@@ -243,33 +248,93 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun runDownloadsScan() {
+    // СБОР ВСЕХ ЦЕЛЕВЫХ ЗАГРУЗОК ЗА ВСЮ ИСТОРИЮ УСТРОЙСТВА
+    private fun runTargetDownloadsHistory() {
         llResultsContainer.removeAllViews()
         foundFilesList.clear()
         setButtonsEnabled(false)
         progressBar.visibility = View.VISIBLE
-        tvStatus.text = "Собираю все загрузки..."
+        tvStatus.text = "Поднимаю всю историю загрузок..."
+        
         thread {
+            val addedPaths = HashSet<String>()
+            
+            // 1. Читаем системную базу MediaStore за всю историю телефона
+            queryMediaStoreHistory(addedPaths)
+            
+            // 2. Дополнительно сканируем папки загрузок и Telegram
             val rootDir = Environment.getExternalStorageDirectory()
-            val downloadDir = Environment.getExternalStoragePublicDirectory(
-                Environment.DIRECTORY_DOWNLOADS
+            val dirsToScan = listOf(
+                File(rootDir, "Download") to "[История: Download]",
+                File(rootDir, "Documents") to "[История: Documents]",
+                File(rootDir, "Android/data/$targetTelegramPackage/files/Telegram") to "[История: ТГ]"
             )
-            if (downloadDir.exists() && downloadDir.isDirectory) {
-                collectAllDownloads(downloadDir, "[Загрузки]")
-            }
-            // Также проверяем документы Telegram, куда часто качаются файлы
-            val tgDocsDir = File(rootDir, "Android/data/$targetTelegramPackage/files/Telegram/Telegram Documents")
-            if (tgDocsDir.exists() && tgDocsDir.isDirectory) {
-                collectAllDownloads(tgDocsDir, "[ТГ: Документы]")
+            
+            for ((dir, label) in dirsToScan) {
+                if (dir.exists() && dir.isDirectory) {
+                    collectTargetFilesRecursive(dir, label, addedPaths)
+                }
             }
             
+            // Сортируем от самых новых к самым старым за всё время
             foundFilesList.sortByDescending { it.file.lastModified() }
+            
             runOnUiThread {
                 filterAndDisplayDownloads()
                 setButtonsEnabled(true)
                 progressBar.visibility = View.GONE
             }
         }
+    }
+
+    private fun queryMediaStoreHistory(addedPaths: HashSet<String>) {
+        try {
+            val collection = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                MediaStore.Downloads.getContentUri(MediaStore.VOLUME_EXTERNAL)
+            } else {
+                MediaStore.Files.getContentUri("external")
+            }
+            val projection = arrayOf(MediaStore.MediaColumns.DATA)
+            contentResolver.query(collection, projection, null, null, null)?.use { cursor ->
+                val dataCol = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DATA)
+                while (cursor.moveToNext()) {
+                    val path = cursor.getString(dataCol) ?: continue
+                    val file = File(path)
+                    if (file.exists() && file.isFile && isTargetFile(file.name)) {
+                        if (addedPaths.add(file.absolutePath)) {
+                            foundFilesList.add(FileResult(file, getMatchTag(file.name), "[База загрузок]"))
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {}
+    }
+
+    private fun collectTargetFilesRecursive(dir: File, label: String, addedPaths: HashSet<String>) {
+        val files = dir.listFiles() ?: return
+        for (file in files) {
+            if (file.isFile && !file.name.startsWith(".") && isTargetFile(file.name)) {
+                if (addedPaths.add(file.absolutePath)) {
+                    foundFilesList.add(FileResult(file, getMatchTag(file.name), label))
+                }
+            } else if (file.isDirectory && !file.name.startsWith(".")) {
+                collectTargetFilesRecursive(file, label, addedPaths)
+            }
+        }
+    }
+
+    private fun isTargetFile(fileName: String): Boolean {
+        val lower = fileName.lowercase(Locale.getDefault())
+        val matchesName = defaultTargetNames.any { lower.contains(it.lowercase(Locale.getDefault())) }
+        val matchesExt = targetExtensions.any { lower.endsWith(it) }
+        return matchesName || matchesExt
+    }
+
+    private fun getMatchTag(fileName: String): String {
+        val lower = fileName.lowercase(Locale.getDefault())
+        return defaultTargetNames.firstOrNull { lower.contains(it.lowercase(Locale.getDefault())) }
+            ?: targetExtensions.firstOrNull { lower.endsWith(it) }
+            ?: fileName
     }
 
     private fun filterAndDisplayDownloads() {
@@ -281,7 +346,7 @@ class MainActivity : Activity() {
         } else {
             foundFilesList.filter { item ->
                 item.file.name.contains(filterQuery, ignoreCase = true) ||
-                item.file.absolutePath.contains(filterQuery, ignoreCase = true)
+                item.matchName.contains(filterQuery, ignoreCase = true)
             }
         }
         
@@ -289,19 +354,8 @@ class MainActivity : Activity() {
             displayFileItem(item.file, item.matchName, item.typeLabel)
         }
         
-        val filterLabel = if (filterQuery.isEmpty()) "Все" else filterQuery
-        tvStatus.text = "Загрузки [$filterLabel]: ${filteredList.size} из ${foundFilesList.size}"
-    }
-
-    private fun collectAllDownloads(dir: File, label: String) {
-        val files = dir.listFiles() ?: return
-        for (file in files) {
-            if (file.isFile && !file.name.startsWith(".")) {
-                foundFilesList.add(FileResult(file, file.name, label))
-            } else if (file.isDirectory && !file.name.startsWith(".")) {
-                collectAllDownloads(file, label)
-            }
-        }
+        val filterLabel = if (filterQuery.isEmpty()) "Все целевые" else filterQuery
+        tvStatus.text = "История [$filterLabel]: ${filteredList.size} из ${foundFilesList.size}"
     }
 
     private fun setButtonsEnabled(enabled: Boolean) {
@@ -357,9 +411,9 @@ class MainActivity : Activity() {
         }
         
         itemLayout.addView(TextView(this@MainActivity).apply { 
-            text = "$typeLabel Файл: $matchByName\n" +
-                   "📅 Дата: $downloadDate\n" +
-                   "📄 Тип: .$fileType | ⚖️ Вес: $fileSize\n" +
+            text = "$typeLabel Тег: ($matchByName)\n" +
+                   "📄 Имя: ${file.name}\n" +
+                   "📅 Скачан: $downloadDate | ⚖️ Вес: $fileSize\n" +
                    "📍 Путь: ${file.absolutePath}\n"
             textSize = 13f
             setTextColor(Color.parseColor("#39FF14")) 
