@@ -17,6 +17,8 @@ import android.widget.*
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
+import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
 import kotlin.concurrent.thread
 
@@ -32,6 +34,7 @@ class MainActivity : Activity() {
 
     private lateinit var etSearchInput: EditText
     private lateinit var btnScan: Button
+    private lateinit var btnRecentDownloads: Button
     private lateinit var llResultsContainer: LinearLayout
     private lateinit var tvStatus: TextView
     private lateinit var progressBar: ProgressBar
@@ -41,6 +44,7 @@ class MainActivity : Activity() {
     
     private var checkedDirsCount = 0
     private val foundFilesList = mutableListOf<FileResult>()
+    private var isDownloadsMode = false
 
     data class FileResult(
         val file: File, 
@@ -50,7 +54,6 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Сразу запускаем главный экран без пароля
         initMainSearchUi()
     }
         private fun initMainSearchUi() {
@@ -63,11 +66,11 @@ class MainActivity : Activity() {
         mainLayout.addView(TextView(this).apply { 
             text = "👺 GOBLIN FILES SEARCHER"
             t(this, "#FF1E1E", 20f)
-            setPadding(0, 10, 0, 24) 
+            setPadding(0, 10, 0, 20) 
         })
         
         etSearchInput = EditText(this).apply { 
-            hint = "Введите имя файла..."
+            hint = "Введите имя или расширение..."
             setHintTextColor(Color.parseColor("#777777"))
             setTextColor(Color.WHITE)
             textSize = 16f
@@ -82,14 +85,13 @@ class MainActivity : Activity() {
         
         val tagsLayout = LinearLayout(this).apply { 
             orientation = LinearLayout.HORIZONTAL
-            setPadding(0, 16, 0, 16) 
+            setPadding(0, 12, 0, 12) 
         }
-        val tags = listOf(".zip", ".so", ".apk", "Telegram")
+        val tags = listOf("Все", ".zip", ".so", ".apk", "Telegram")
         for (tag in tags) {
             tagsLayout.addView(Button(this).apply { 
-                text = tag
-                textSize = 12f
-                setTextColor(Color.WHITE)
+                text = tag; textSize = 11f; setTextColor(Color.WHITE)
+                setPadding(4, 0, 4, 0)
                 background = GradientDrawable().apply {
                     setColor(Color.parseColor("#1C1C21"))
                     cornerRadius = 8f
@@ -97,10 +99,17 @@ class MainActivity : Activity() {
                 }
                 layoutParams = LinearLayout.LayoutParams(
                     0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f
-                ).apply { setMargins(6, 0, 6, 0) }
+                ).apply { setMargins(4, 0, 4, 0) }
                 setOnClickListener { 
-                    etSearchInput.setText(tag)
-                    etSearchInput.setSelection(tag.length) 
+                    if (tag == "Все") {
+                        etSearchInput.setText("")
+                    } else {
+                        etSearchInput.setText(tag)
+                        etSearchInput.setSelection(tag.length)
+                    }
+                    if (isDownloadsMode) {
+                        filterAndDisplayDownloads()
+                    }
                 } 
             })
         }
@@ -135,9 +144,25 @@ class MainActivity : Activity() {
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply { setMargins(0, 16, 0, 8) }
+            ).apply { setMargins(0, 12, 0, 8) }
         }
         mainLayout.addView(btnScan)
+
+        btnRecentDownloads = Button(this).apply { 
+            text = "📥 ВСЕ СКАЧАННЫЕ (С ФИЛЬТРОМ)"
+            setTextColor(Color.parseColor("#39FF14"))
+            typeface = Typeface.DEFAULT_BOLD
+            background = GradientDrawable().apply {
+                setColor(Color.parseColor("#141417"))
+                cornerRadius = 12f
+                setStroke(2, Color.parseColor("#39FF14"))
+            }
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { setMargins(0, 4, 0, 8) }
+        }
+        mainLayout.addView(btnRecentDownloads)
         
         progressBar = ProgressBar(this).apply { visibility = View.GONE }
         mainLayout.addView(progressBar)
@@ -146,7 +171,7 @@ class MainActivity : Activity() {
             text = "Система Goblin готова к поиску"
             textSize = 14f
             setTextColor(Color.parseColor("#39FF14"))
-            setPadding(0, 12, 0, 16) 
+            setPadding(0, 8, 0, 12) 
         }
         mainLayout.addView(tvStatus)
         
@@ -159,22 +184,31 @@ class MainActivity : Activity() {
         setContentView(mainLayout)
         
         btnScan.setOnClickListener { 
-            val hasPerm = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) 
-                Environment.isExternalStorageManager() else true
-            if (hasPerm) { runSearch() } else { 
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                    startActivity(Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION))
-                }
-            } 
+            isDownloadsMode = false
+            checkPermAndRun { runSearch() } 
         }
+        btnRecentDownloads.setOnClickListener { 
+            isDownloadsMode = true
+            checkPermAndRun { runDownloadsScan() } 
         }
-            private fun runSearch() {
+    }
+
+    private fun checkPermAndRun(action: () -> Unit) {
+        val hasPerm = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) 
+            Environment.isExternalStorageManager() else true
+        if (hasPerm) { 
+            action() 
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            startActivity(Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION))
+        }
+    }
+       private fun runSearch() {
         llResultsContainer.removeAllViews()
         foundFilesList.clear()
         checkedDirsCount = 0
         val query = etSearchInput.text.toString().trim()
         val currentTargets = if (query.isEmpty()) defaultTargetNames else listOf(query)
-        btnScan.isEnabled = false
+        setButtonsEnabled(false)
         progressBar.visibility = View.VISIBLE
         thread {
             val rootDir = Environment.getExternalStorageDirectory()
@@ -197,16 +231,82 @@ class MainActivity : Activity() {
                     collectFiles(tgCacheDir, currentTargets, "[ТГ: Кэш чатов]") 
                 }
             }
-            foundFilesList.sortByDescending { it.file.length() }
+            foundFilesList.sortByDescending { it.file.lastModified() }
             runOnUiThread {
                 for (item in foundFilesList) { 
                     displayFileItem(item.file, item.matchName, item.typeLabel) 
                 }
-                btnScan.isEnabled = true
+                setButtonsEnabled(true)
                 progressBar.visibility = View.GONE
                 tvStatus.text = "Найдено совпадений: ${foundFilesList.size}"
             }
         }
+    }
+
+    private fun runDownloadsScan() {
+        llResultsContainer.removeAllViews()
+        foundFilesList.clear()
+        setButtonsEnabled(false)
+        progressBar.visibility = View.VISIBLE
+        tvStatus.text = "Собираю все загрузки..."
+        thread {
+            val rootDir = Environment.getExternalStorageDirectory()
+            val downloadDir = Environment.getExternalStoragePublicDirectory(
+                Environment.DIRECTORY_DOWNLOADS
+            )
+            if (downloadDir.exists() && downloadDir.isDirectory) {
+                collectAllDownloads(downloadDir, "[Загрузки]")
+            }
+            // Также проверяем документы Telegram, куда часто качаются файлы
+            val tgDocsDir = File(rootDir, "Android/data/$targetTelegramPackage/files/Telegram/Telegram Documents")
+            if (tgDocsDir.exists() && tgDocsDir.isDirectory) {
+                collectAllDownloads(tgDocsDir, "[ТГ: Документы]")
+            }
+            
+            foundFilesList.sortByDescending { it.file.lastModified() }
+            runOnUiThread {
+                filterAndDisplayDownloads()
+                setButtonsEnabled(true)
+                progressBar.visibility = View.GONE
+            }
+        }
+    }
+
+    private fun filterAndDisplayDownloads() {
+        llResultsContainer.removeAllViews()
+        val filterQuery = etSearchInput.text.toString().trim()
+        
+        val filteredList = if (filterQuery.isEmpty()) {
+            foundFilesList
+        } else {
+            foundFilesList.filter { item ->
+                item.file.name.contains(filterQuery, ignoreCase = true) ||
+                item.file.absolutePath.contains(filterQuery, ignoreCase = true)
+            }
+        }
+        
+        for (item in filteredList) {
+            displayFileItem(item.file, item.matchName, item.typeLabel)
+        }
+        
+        val filterLabel = if (filterQuery.isEmpty()) "Все" else filterQuery
+        tvStatus.text = "Загрузки [$filterLabel]: ${filteredList.size} из ${foundFilesList.size}"
+    }
+
+    private fun collectAllDownloads(dir: File, label: String) {
+        val files = dir.listFiles() ?: return
+        for (file in files) {
+            if (file.isFile && !file.name.startsWith(".")) {
+                foundFilesList.add(FileResult(file, file.name, label))
+            } else if (file.isDirectory && !file.name.startsWith(".")) {
+                collectAllDownloads(file, label)
+            }
+        }
+    }
+
+    private fun setButtonsEnabled(enabled: Boolean) {
+        btnScan.isEnabled = enabled
+        btnRecentDownloads.isEnabled = enabled
     }
 
     private fun collectFiles(dir: File, targets: List<String>, label: String) {
@@ -232,6 +332,9 @@ class MainActivity : Activity() {
         val bytes = file.length()
         val fileSize = if (bytes >= 1024 * 1024) "${bytes / (1024 * 1024)} МБ" else "${bytes / 1024} КБ"
         
+        val sdf = SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault())
+        val downloadDate = sdf.format(Date(file.lastModified()))
+        
         val itemLayout = LinearLayout(this@MainActivity).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(24, 24, 24, 24)
@@ -254,7 +357,10 @@ class MainActivity : Activity() {
         }
         
         itemLayout.addView(TextView(this@MainActivity).apply { 
-            text = "$typeLabel Совпадение: ($matchByName)\n📄 Тип: .$fileType | ⚖️ Вес: $fileSize\n📍 Путь: ${file.absolutePath}\n"
+            text = "$typeLabel Файл: $matchByName\n" +
+                   "📅 Дата: $downloadDate\n" +
+                   "📄 Тип: .$fileType | ⚖️ Вес: $fileSize\n" +
+                   "📍 Путь: ${file.absolutePath}\n"
             textSize = 13f
             setTextColor(Color.parseColor("#39FF14")) 
         })
@@ -336,7 +442,7 @@ class MainActivity : Activity() {
         tv.apply { 
             setTextColor(Color.parseColor(c))
             textSize = s
-            typeface = Typeface.DEFAULT_BOLD
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
             gravity = Gravity.CENTER 
         } 
     }
