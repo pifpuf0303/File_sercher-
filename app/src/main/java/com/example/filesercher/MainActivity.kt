@@ -24,12 +24,13 @@ import java.util.Locale
 import kotlin.concurrent.thread
 
 class MainActivity : Activity() {
-    // Твои целевые файлы и ключевые слова для истории загрузок
+    // 🔴 ЗАМЕНИ ЭТИ ЦИФРЫ НА СВОЙ ПАРОЛЬ ИЗ 100 ЗНАКОВ
+    private val HARDCODED_PASSWORD = "1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890"
+
     private val defaultTargetNames = listOf(
         "libil2cpp.so", "Yandere.zip", 
         "R4x", "Viento", "Spoof_lios"
     )
-    // Расширения, которые считаем целевыми при сканировании истории
     private val targetExtensions = listOf(".so", ".zip", ".apk")
     
     private val targetGamePackage = 
@@ -59,31 +60,95 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        initMainSearchUi()
+        // При каждом запуске/перезаходе требуем пароль
+        showAuthScreen()
     }
-        private fun initMainSearchUi() {
+        private fun showAuthScreen() {
+        val root = LinearLayout(this).apply { 
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(Color.parseColor("#0A0A0C"))
+            gravity = Gravity.CENTER
+            setPadding(64, 64, 64, 64) 
+        }
+        
+        root.addView(TextView(this).apply { 
+            text = "👑 ME PROJECT"
+            t(this, "#FFD700", 24f)
+            setPadding(0, 0, 0, 8) 
+        })
+        
+        root.addView(TextView(this).apply { 
+            text = "ЗАКРЫТЫЙ ДОСТУП"
+            t(this, "#B0B0B8", 12f)
+            setPadding(0, 0, 0, 48) 
+        })
+        
+        val etKey = EditText(this).apply { 
+            hint = "Введите 100-значный пароль..."
+            setHintTextColor(Color.parseColor("#66666E"))
+            setTextColor(Color.WHITE)
+            gravity = Gravity.CENTER
+            setPadding(24, 24, 24, 24)
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER
+            background = GradientDrawable().apply {
+                setColor(Color.parseColor("#141418"))
+                cornerRadius = 12f
+                setStroke(2, Color.parseColor("#D4AF37"))
+            }
+        }
+        root.addView(etKey)
+        
+        root.addView(Button(this).apply { 
+            text = "ВОЙТИ В СИСТЕМУ"
+            setTextColor(Color.BLACK)
+            typeface = Typeface.DEFAULT_BOLD
+            background = GradientDrawable().apply {
+                setColor(Color.parseColor("#FFD700"))
+                cornerRadius = 12f
+            }
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { setMargins(0, 32, 0, 0) }
+            setOnClickListener {
+                val entered = etKey.text.toString().trim()
+                if (entered == HARDCODED_PASSWORD) { 
+                    initMainSearchUi() 
+                } else {
+                    Toast.makeText(
+                        this@MainActivity, 
+                        "Неверный пароль доступа!", 
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            } 
+        })
+        setContentView(root)
+    }
+
+    private fun initMainSearchUi() {
         val mainLayout = LinearLayout(this).apply { 
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Color.parseColor("#09090B"))
+            setBackgroundColor(Color.parseColor("#0A0A0C"))
             setPadding(32, 32, 32, 32) 
         }
         
         mainLayout.addView(TextView(this).apply { 
-            text = "👺 GOBLIN FILES SEARCHER"
-            t(this, "#FF1E1E", 20f)
+            text = "👑 ME PROJECT"
+            t(this, "#FFD700", 22f)
             setPadding(0, 10, 0, 20) 
         })
         
         etSearchInput = EditText(this).apply { 
             hint = "Введите имя или тег..."
-            setHintTextColor(Color.parseColor("#777777"))
+            setHintTextColor(Color.parseColor("#777780"))
             setTextColor(Color.WHITE)
             textSize = 16f
             setPadding(24, 24, 24, 24)
             background = GradientDrawable().apply {
-                setColor(Color.parseColor("#141417"))
+                setColor(Color.parseColor("#141418"))
                 cornerRadius = 12f
-                setStroke(2, Color.parseColor("#FF1E1E"))
+                setStroke(2, Color.parseColor("#D4AF37"))
             }
         }
         mainLayout.addView(etSearchInput)
@@ -95,12 +160,12 @@ class MainActivity : Activity() {
         val tags = listOf("Все", "libil2cpp", ".zip", ".so", ".apk")
         for (tag in tags) {
             tagsLayout.addView(Button(this).apply { 
-                text = tag; textSize = 11f; setTextColor(Color.WHITE)
+                text = tag; textSize = 11f; setTextColor(Color.parseColor("#E5E5EA"))
                 setPadding(4, 0, 4, 0)
                 background = GradientDrawable().apply {
-                    setColor(Color.parseColor("#1C1C21"))
+                    setColor(Color.parseColor("#1C1C22"))
                     cornerRadius = 8f
-                    setStroke(1, Color.parseColor("#8A0000"))
+                    setStroke(1, Color.parseColor("#8C7324"))
                 }
                 layoutParams = LinearLayout.LayoutParams(
                     0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f
@@ -122,28 +187,28 @@ class MainActivity : Activity() {
         
         cbSearchStorage = CheckBox(this).apply { 
             text = "Искать в общей памяти"
-            setTextColor(Color.WHITE); isChecked = true 
+            setTextColor(Color.parseColor("#E5E5EA")); isChecked = true 
         }
         mainLayout.addView(cbSearchStorage)
         
         cbSearchCache = CheckBox(this).apply { 
             text = "Искать в кэше игры"
-            setTextColor(Color.WHITE); isChecked = true 
+            setTextColor(Color.parseColor("#E5E5EA")); isChecked = true 
         }
         mainLayout.addView(cbSearchCache)
         
         cbSearchTelegram = CheckBox(this).apply { 
             text = "Искать в Telegram"
-            setTextColor(Color.WHITE); isChecked = true 
+            setTextColor(Color.parseColor("#E5E5EA")); isChecked = true 
         }
         mainLayout.addView(cbSearchTelegram)
         
         btnScan = Button(this).apply { 
             text = "ГЛУБОКИЙ ПОИСК"
-            setTextColor(Color.WHITE)
+            setTextColor(Color.BLACK)
             typeface = Typeface.DEFAULT_BOLD
             background = GradientDrawable().apply {
-                setColor(Color.parseColor("#D90429"))
+                setColor(Color.parseColor("#FFD700"))
                 cornerRadius = 12f
             }
             layoutParams = LinearLayout.LayoutParams(
@@ -155,12 +220,12 @@ class MainActivity : Activity() {
 
         btnRecentDownloads = Button(this).apply { 
             text = "📥 ИСТОРИЯ ЗАГРУЗОК (ЦЕЛЕВЫЕ)"
-            setTextColor(Color.parseColor("#39FF14"))
+            setTextColor(Color.parseColor("#FFD700"))
             typeface = Typeface.DEFAULT_BOLD
             background = GradientDrawable().apply {
-                setColor(Color.parseColor("#141417"))
+                setColor(Color.parseColor("#141418"))
                 cornerRadius = 12f
-                setStroke(2, Color.parseColor("#39FF14"))
+                setStroke(2, Color.parseColor("#FFD700"))
             }
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -173,9 +238,9 @@ class MainActivity : Activity() {
         mainLayout.addView(progressBar)
         
         tvStatus = TextView(this).apply { 
-            text = "Система Goblin готова к поиску"
+            text = "Система ME Project готова к работе"
             textSize = 14f
-            setTextColor(Color.parseColor("#39FF14"))
+            setTextColor(Color.parseColor("#D4AF37"))
             setPadding(0, 8, 0, 12) 
         }
         mainLayout.addView(tvStatus)
@@ -248,21 +313,17 @@ class MainActivity : Activity() {
         }
     }
 
-    // СБОР ВСЕХ ЦЕЛЕВЫХ ЗАГРУЗОК ЗА ВСЮ ИСТОРИЮ УСТРОЙСТВА
     private fun runTargetDownloadsHistory() {
         llResultsContainer.removeAllViews()
         foundFilesList.clear()
         setButtonsEnabled(false)
         progressBar.visibility = View.VISIBLE
-        tvStatus.text = "Поднимаю всю историю загрузок..."
+        tvStatus.text = "Поднимаю историю загрузок..."
         
         thread {
             val addedPaths = HashSet<String>()
-            
-            // 1. Читаем системную базу MediaStore за всю историю телефона
             queryMediaStoreHistory(addedPaths)
             
-            // 2. Дополнительно сканируем папки загрузок и Telegram
             val rootDir = Environment.getExternalStorageDirectory()
             val dirsToScan = listOf(
                 File(rootDir, "Download") to "[История: Download]",
@@ -276,7 +337,6 @@ class MainActivity : Activity() {
                 }
             }
             
-            // Сортируем от самых новых к самым старым за всё время
             foundFilesList.sortByDescending { it.file.lastModified() }
             
             runOnUiThread {
@@ -382,7 +442,6 @@ class MainActivity : Activity() {
         }
     }
         private fun displayFileItem(file: File, matchByName: String, typeLabel: String) {
-        val fileType = file.extension.uppercase(Locale.getDefault()).ifEmpty { "FILE" }
         val bytes = file.length()
         val fileSize = if (bytes >= 1024 * 1024) "${bytes / (1024 * 1024)} МБ" else "${bytes / 1024} КБ"
         
@@ -393,9 +452,9 @@ class MainActivity : Activity() {
             orientation = LinearLayout.VERTICAL
             setPadding(24, 24, 24, 24)
             background = GradientDrawable().apply { 
-                setColor(Color.parseColor("#141417"))
+                setColor(Color.parseColor("#141418"))
                 cornerRadius = 12f
-                setStroke(2, Color.parseColor("#8A0000")) 
+                setStroke(2, Color.parseColor("#8C7324")) 
             }
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, 
@@ -416,7 +475,7 @@ class MainActivity : Activity() {
                    "📅 Скачан: $downloadDate | ⚖️ Вес: $fileSize\n" +
                    "📍 Путь: ${file.absolutePath}\n"
             textSize = 13f
-            setTextColor(Color.parseColor("#39FF14")) 
+            setTextColor(Color.parseColor("#F5F5F7")) 
         })
         
         if (typeLabel != "[Кэш игры]") {
@@ -426,12 +485,12 @@ class MainActivity : Activity() {
             }
             buttonsLayout.addView(Button(this@MainActivity).apply { 
                 text = "ИНЖЕКТ"
-                setTextColor(Color.WHITE)
+                setTextColor(Color.BLACK)
                 textSize = 12f
                 typeface = Typeface.DEFAULT_BOLD
                 setPadding(32, 16, 32, 16)
                 background = GradientDrawable().apply {
-                    setColor(Color.parseColor("#D90429"))
+                    setColor(Color.parseColor("#FFD700"))
                     cornerRadius = 8f
                 }
                 setOnClickListener { 
