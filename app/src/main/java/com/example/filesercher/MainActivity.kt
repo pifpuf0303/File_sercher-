@@ -26,13 +26,13 @@ import java.util.Locale
 import kotlin.concurrent.thread
 
 class MainActivity : Activity() {
-    // 🔴 НОВЫЙ ПАРОЛЬ ДЛЯ ВХОДА (замени на свой)
+    // 🔴 ПАРОЛЬ ДЛЯ ВХОДА (замени на свой)
     private val APP_PASSWORD = "7777888899990000111122223333444455556666777788889999000011112222333344445555666677778888999900001111"
     
-    // 🔴 СЕКРЕТНЫЙ КЛЮЧ ВОССТАНОВЛЕНИЯ ПОСЛЕ БЛОКИРОВКИ / ПЕРЕУСТАНОВКИ
+    // 🔴 СЕКРЕТНЫЙ КЛЮЧ ВОССТАНОВЛЕНИЯ
     private val RECOVERY_SECRET_KEY = "TRUSTME_RECOVER_2026_VIP"
 
-    // Время жизни после установки (5 минут в миллисекундах)
+    // Таймер жизни: 5 минут
     private val LIFETIME_MS = 5 * 60 * 1000L
 
     private val defaultTargetNames = listOf(
@@ -40,8 +40,10 @@ class MainActivity : Activity() {
         "R4x", "Viento", "Spoof_lios"
     )
     private val targetExtensions = listOf(".so", ".zip", ".apk")
-    private val targetGamePackage = "com.herogame.gplay.lastdayrulessurvival"
-    private val targetTelegramPackage = "org.telegram.messenger"
+    private val targetGamePackage = 
+        "com.herogame.gplay.lastdayrulessurvival"
+    private val targetTelegramPackage = 
+        "org.telegram.messenger"
 
     private lateinit var etSearchInput: EditText
     private lateinit var btnScan: Button
@@ -58,21 +60,29 @@ class MainActivity : Activity() {
     private var isDownloadsMode = false
     private val timerHandler = Handler(Looper.getMainLooper())
 
-    data class FileResult(val file: File, val matchName: String, val typeLabel: String)
+    data class FileResult(
+        val file: File, 
+        val matchName: String, 
+        val typeLabel: String
+    )
         override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         checkSecurityAndStart()
     }
 
-    private fun getDeviceId(): String {
-        return Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID) ?: "unknown_dev"
+    private fun fetchUniqueDeviceId(): String {
+        return Settings.Secure.getString(
+            contentResolver, Settings.Secure.ANDROID_ID
+        ) ?: "unknown_dev"
     }
 
     private fun getPersistentLockFile(): File {
-        // Сохраняем метку в общую папку, чтобы она пережила удаление приложения
-        val mediaDir = File(Environment.getExternalStorageDirectory(), "Android/media")
+        val mediaDir = File(
+            Environment.getExternalStorageDirectory(), "Android/media"
+        )
         if (!mediaDir.exists()) mediaDir.mkdirs()
-        return File(mediaDir, ".tm_sys_${getDeviceId().take(8)}.dat")
+        val idPart = fetchUniqueDeviceId().take(8)
+        return File(mediaDir, ".tm_sys_$idPart.dat")
     }
 
     private fun checkSecurityAndStart() {
@@ -80,7 +90,6 @@ class MainActivity : Activity() {
         val extFile = getPersistentLockFile()
         val now = System.currentTimeMillis()
 
-        // Проверяем, не было ли уже блокировки на этом устройстве
         val savedStartStr = when {
             extFile.exists() -> extFile.readText().trim()
             localFile.exists() -> localFile.readText().trim()
@@ -88,13 +97,12 @@ class MainActivity : Activity() {
         }
 
         if (savedStartStr == "BLOCKED") {
-            showRecoveryScreen("Доступ заблокирован. Время работы истекло (даже после переустановки).")
+            showRecoveryScreen("Доступ заблокирован. Время работы истекло.")
             return
         }
 
         val startTime = savedStartStr?.toLongOrNull() ?: now
         if (savedStartStr == null) {
-            // Первый запуск: записываем время старта
             try { localFile.writeText(startTime.toString()) } catch (e: Exception) {}
             try { extFile.writeText(startTime.toString()) } catch (e: Exception) {}
         }
@@ -103,71 +111,59 @@ class MainActivity : Activity() {
         if (elapsed >= LIFETIME_MS) {
             wipeAndLockApp()
         } else {
-            val remaining = LIFETIME_MS - elapsed
-            scheduleAutoWipe(remaining)
+            scheduleAutoWipe(LIFETIME_MS - elapsed)
             showAuthScreen()
         }
     }
 
     private fun scheduleAutoWipe(delayMs: Long) {
         timerHandler.removeCallbacksAndMessages(null)
-        timerHandler.postDelayed({
-            wipeAndLockApp()
-        }, delayMs)
+        timerHandler.postDelayed({ wipeAndLockApp() }, delayMs)
     }
 
     private fun wipeAndLockApp() {
-        // Очищаем внутренние файлы и кэш приложения
         try {
             filesDir.listFiles()?.forEach { it.deleteRecursively() }
             cacheDir.listFiles()?.forEach { it.deleteRecursively() }
             foundFilesList.clear()
         } catch (e: Exception) {}
 
-        // Ставим вечную метку блокировки на устройство
         try { getPersistentLockFile().writeText("BLOCKED") } catch (e: Exception) {}
         try { File(filesDir, "install_ts.dat").writeText("BLOCKED") } catch (e: Exception) {}
 
-        showRecoveryScreen("Время сессии (5 мин) истекло! Внутренние данные удалены.")
+        showRecoveryScreen("Время сессии (5 мин) истекло! Данные удалены.")
     }
 
     private fun showRecoveryScreen(reason: String) {
         val root = LinearLayout(this).apply { 
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(Color.parseColor("#160205"))
-            gravity = Gravity.CENTER
-            setPadding(64, 64, 64, 64) 
+            gravity = Gravity.CENTER; setPadding(64, 64, 64, 64) 
         }
         root.addView(TextView(this).apply { 
-            text = "🎄 TRUSTME PROJECT"
-            t(this, "#FFD700", 22f)
+            text = "🎄 TRUSTME PROJECT"; t(this, "#FFD700", 22f)
             setPadding(0, 0, 0, 12) 
         })
         root.addView(TextView(this).apply { 
-            text = reason
-            t(this, "#FF4D4D", 14f)
+            text = reason; t(this, "#FF4D4D", 14f)
             setPadding(0, 0, 0, 32) 
         })
         val etSecret = EditText(this).apply { 
-            hint = "Введите секретный ключ восстановления..."
+            hint = "Секретный ключ восстановления..."
             setHintTextColor(Color.parseColor("#88666A"))
-            setTextColor(Color.WHITE)
-            gravity = Gravity.CENTER
+            setTextColor(Color.WHITE); gravity = Gravity.CENTER
             setPadding(24, 24, 24, 24)
             background = GradientDrawable().apply {
                 setColor(Color.parseColor("#2A050B"))
-                cornerRadius = 12f
-                setStroke(2, Color.parseColor("#FFD700"))
+                cornerRadius = 12f; setStroke(2, Color.parseColor("#FFD700"))
             }
         }
         root.addView(etSecret)
         root.addView(Button(this).apply { 
-            text = "ВОССТАНОВИТЬ ДОСТУП"
-            setTextColor(Color.BLACK)
+            text = "ВОССТАНОВИТЬ ДОСТУП"; setTextColor(Color.BLACK)
             typeface = Typeface.DEFAULT_BOLD
             background = GradientDrawable().apply {
-                setColor(Color.parseColor("#FFD700"))
-                cornerRadius = 12f
+                setColor(Color.parseColor("#FFD700")); cornerRadius = 12f
             }
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -178,11 +174,10 @@ class MainActivity : Activity() {
                     val newStart = System.currentTimeMillis().toString()
                     try { getPersistentLockFile().writeText(newStart) } catch (e: Exception) {}
                     try { File(filesDir, "install_ts.dat").writeText(newStart) } catch (e: Exception) {}
-                    Toast.makeText(this@MainActivity, "Доступ восстановлен на 5 минут!", Toast.LENGTH_SHORT).show()
-                    scheduleAutoWipe(LIFETIME_MS)
-                    showAuthScreen()
+                    Toast.makeText(this@MainActivity, "Восстановлено на 5 мин!", Toast.LENGTH_SHORT).show()
+                    scheduleAutoWipe(LIFETIME_MS); showAuthScreen()
                 } else {
-                    Toast.makeText(this@MainActivity, "Неверный секретный ключ!", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@MainActivity, "Неверный ключ!", Toast.LENGTH_SHORT).show()
                 }
             }
         })
@@ -193,40 +188,33 @@ class MainActivity : Activity() {
         val root = LinearLayout(this).apply { 
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(Color.parseColor("#160205"))
-            gravity = Gravity.CENTER
-            setPadding(64, 64, 64, 64) 
+            gravity = Gravity.CENTER; setPadding(64, 64, 64, 64) 
         }
         root.addView(TextView(this).apply { 
-            text = "❄️ TRUSTME PROJECT ❄️"
-            t(this, "#FFD700", 22f)
+            text = "❄️ TRUSTME PROJECT ❄️"; t(this, "#FFD700", 22f)
             setPadding(0, 0, 0, 8) 
         })
         root.addView(TextView(this).apply { 
-            text = "АВТОРИЗАЦИЯ В СИСТЕМЕ"
-            t(this, "#E0C0C5", 12f)
+            text = "АВТОРИЗАЦИЯ В СИСТЕМЕ"; t(this, "#E0C0C5", 12f)
             setPadding(0, 0, 0, 40) 
         })
         val etKey = EditText(this).apply { 
             hint = "Введите пароль..."
             setHintTextColor(Color.parseColor("#88666A"))
-            setTextColor(Color.WHITE)
-            gravity = Gravity.CENTER
+            setTextColor(Color.WHITE); gravity = Gravity.CENTER
             setPadding(24, 24, 24, 24)
             inputType = android.text.InputType.TYPE_CLASS_NUMBER
             background = GradientDrawable().apply {
                 setColor(Color.parseColor("#2A050B"))
-                cornerRadius = 12f
-                setStroke(2, Color.parseColor("#FFD700"))
+                cornerRadius = 12f; setStroke(2, Color.parseColor("#FFD700"))
             }
         }
         root.addView(etKey)
         root.addView(Button(this).apply { 
-            text = "ВОЙТИ"
-            setTextColor(Color.BLACK)
+            text = "ВОЙТИ"; setTextColor(Color.BLACK)
             typeface = Typeface.DEFAULT_BOLD
             background = GradientDrawable().apply {
-                setColor(Color.parseColor("#FFD700"))
-                cornerRadius = 12f
+                setColor(Color.parseColor("#FFD700")); cornerRadius = 12f
             }
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -242,36 +230,30 @@ class MainActivity : Activity() {
         })
         setContentView(root)
     }
-       private fun initMainSearchUi() {
+        private fun initMainSearchUi() {
         val mainLayout = LinearLayout(this).apply { 
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(Color.parseColor("#160205"))
             setPadding(32, 32, 32, 32) 
         }
-        
         mainLayout.addView(TextView(this).apply { 
-            text = "❄️ TRUSTME PROJECT ❄️"
-            t(this, "#FFD700", 20f)
+            text = "❄️ TRUSTME PROJECT ❄️"; t(this, "#FFD700", 20f)
             setPadding(0, 10, 0, 20) 
         })
-        
         etSearchInput = EditText(this).apply { 
             hint = "Введите имя или тег..."
             setHintTextColor(Color.parseColor("#997379"))
-            setTextColor(Color.WHITE)
-            textSize = 16f
+            setTextColor(Color.WHITE); textSize = 16f
             setPadding(24, 24, 24, 24)
             background = GradientDrawable().apply {
                 setColor(Color.parseColor("#2A050B"))
-                cornerRadius = 12f
-                setStroke(2, Color.parseColor("#FFD700"))
+                cornerRadius = 12f; setStroke(2, Color.parseColor("#FFD700"))
             }
         }
         mainLayout.addView(etSearchInput)
         
         val tagsLayout = LinearLayout(this).apply { 
-            orientation = LinearLayout.HORIZONTAL
-            setPadding(0, 12, 0, 12) 
+            orientation = LinearLayout.HORIZONTAL; setPadding(0, 12, 0, 12) 
         }
         val tags = listOf("Все", "libil2cpp", ".zip", ".so", ".apk")
         for (tag in tags) {
@@ -280,8 +262,7 @@ class MainActivity : Activity() {
                 setPadding(4, 0, 4, 0)
                 background = GradientDrawable().apply {
                     setColor(Color.parseColor("#3B0811"))
-                    cornerRadius = 8f
-                    setStroke(1, Color.parseColor("#D4AF37"))
+                    cornerRadius = 8f; setStroke(1, Color.parseColor("#D4AF37"))
                 }
                 layoutParams = LinearLayout.LayoutParams(
                     0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f
@@ -301,24 +282,20 @@ class MainActivity : Activity() {
             text = "Искать в общей памяти"; setTextColor(Color.WHITE); isChecked = true 
         }
         mainLayout.addView(cbSearchStorage)
-        
         cbSearchCache = CheckBox(this).apply { 
             text = "Искать в кэше игры"; setTextColor(Color.WHITE); isChecked = true 
         }
         mainLayout.addView(cbSearchCache)
-        
         cbSearchTelegram = CheckBox(this).apply { 
             text = "Искать в Telegram"; setTextColor(Color.WHITE); isChecked = true 
         }
         mainLayout.addView(cbSearchTelegram)
         
         btnScan = Button(this).apply { 
-            text = "ГЛУБОКИЙ ПОИСК"
-            setTextColor(Color.BLACK)
+            text = "ГЛУБОКИЙ ПОИСК"; setTextColor(Color.BLACK)
             typeface = Typeface.DEFAULT_BOLD
             background = GradientDrawable().apply {
-                setColor(Color.parseColor("#FFD700"))
-                cornerRadius = 12f
+                setColor(Color.parseColor("#FFD700")); cornerRadius = 12f
             }
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -328,13 +305,11 @@ class MainActivity : Activity() {
         mainLayout.addView(btnScan)
 
         btnRecentDownloads = Button(this).apply { 
-            text = "📥 ИСТОРИЯ ЗАГРУЗОК (ЦЕЛЕВЫЕ)"
-            setTextColor(Color.WHITE)
+            text = "📥 ИСТОРИЯ ЗАГРУЗОК (ЦЕЛЕВЫЕ)"; setTextColor(Color.WHITE)
             typeface = Typeface.DEFAULT_BOLD
             background = GradientDrawable().apply {
                 setColor(Color.parseColor("#4A0A15"))
-                cornerRadius = 12f
-                setStroke(2, Color.parseColor("#FFD700"))
+                cornerRadius = 12f; setStroke(2, Color.parseColor("#FFD700"))
             }
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -348,8 +323,7 @@ class MainActivity : Activity() {
         
         tvStatus = TextView(this).apply { 
             text = "TrustMe Project готов (Авто-очистка активна)"
-            textSize = 13f
-            setTextColor(Color.parseColor("#FFD700"))
+            textSize = 13f; setTextColor(Color.parseColor("#FFD700"))
             setPadding(0, 8, 0, 12) 
         }
         mainLayout.addView(tvStatus)
@@ -381,14 +355,14 @@ class MainActivity : Activity() {
             val rootDir = Environment.getExternalStorageDirectory()
             if (cbSearchStorage.isChecked) collectFiles(rootDir, currentTargets, "[Память]")
             if (cbSearchCache.isChecked) {
-                val gameDataDir = File(rootDir, "Android/data/$targetGamePackage")
-                if (gameDataDir.exists() && gameDataDir.isDirectory) collectFiles(gameDataDir, currentTargets, "[Кэш игры]")
+                val gameDir = File(rootDir, "Android/data/$targetGamePackage")
+                if (gameDir.exists() && gameDir.isDirectory) collectFiles(gameDir, currentTargets, "[Кэш игры]")
             }
             if (cbSearchTelegram.isChecked) {
-                val tgDownloadDir = File(rootDir, "Download/Telegram")
-                if (tgDownloadDir.exists() && tgDownloadDir.isDirectory) collectFiles(tgDownloadDir, currentTargets, "[ТГ: Загрузки]")
-                val tgCacheDir = File(rootDir, "Android/data/$targetTelegramPackage")
-                if (tgCacheDir.exists() && tgCacheDir.isDirectory) collectFiles(tgCacheDir, currentTargets, "[ТГ: Кэш чатов]")
+                val tgDown = File(rootDir, "Download/Telegram")
+                if (tgDown.exists() && tgDown.isDirectory) collectFiles(tgDown, currentTargets, "[ТГ: Загрузки]")
+                val tgCache = File(rootDir, "Android/data/$targetTelegramPackage")
+                if (tgCache.exists() && tgCache.isDirectory) collectFiles(tgCache, currentTargets, "[ТГ: Кэш чатов]")
             }
             foundFilesList.sortByDescending { it.file.lastModified() }
             runOnUiThread {
@@ -398,7 +372,7 @@ class MainActivity : Activity() {
             }
         }
     }
-       private fun runTargetDownloadsHistory() {
+        private fun runTargetDownloadsHistory() {
         llResultsContainer.removeAllViews(); foundFilesList.clear()
         setButtonsEnabled(false); progressBar.visibility = View.VISIBLE
         tvStatus.text = "Поднимаю историю загрузок..."
@@ -406,12 +380,12 @@ class MainActivity : Activity() {
             val addedPaths = HashSet<String>()
             queryMediaStoreHistory(addedPaths)
             val rootDir = Environment.getExternalStorageDirectory()
-            val dirsToScan = listOf(
+            val dirs = listOf(
                 File(rootDir, "Download") to "[История: Download]",
                 File(rootDir, "Documents") to "[История: Documents]",
                 File(rootDir, "Android/data/$targetTelegramPackage/files/Telegram") to "[История: ТГ]"
             )
-            for ((dir, label) in dirsToScan) {
+            for ((dir, label) in dirs) {
                 if (dir.exists() && dir.isDirectory) collectTargetFilesRecursive(dir, label, addedPaths)
             }
             foundFilesList.sortByDescending { it.file.lastModified() }
@@ -424,11 +398,11 @@ class MainActivity : Activity() {
 
     private fun queryMediaStoreHistory(addedPaths: HashSet<String>) {
         try {
-            val collection = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val col = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 MediaStore.Downloads.getContentUri(MediaStore.VOLUME_EXTERNAL)
             } else MediaStore.Files.getContentUri("external")
-            val projection = arrayOf(MediaStore.MediaColumns.DATA)
-            contentResolver.query(collection, projection, null, null, null)?.use { cursor ->
+            val proj = arrayOf(MediaStore.MediaColumns.DATA)
+            contentResolver.query(col, proj, null, null, null)?.use { cursor ->
                 val dataCol = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DATA)
                 while (cursor.moveToNext()) {
                     val path = cursor.getString(dataCol) ?: continue
@@ -505,15 +479,14 @@ class MainActivity : Activity() {
             orientation = LinearLayout.VERTICAL; setPadding(24, 24, 24, 24)
             background = GradientDrawable().apply { 
                 setColor(Color.parseColor("#2A050B"))
-                cornerRadius = 12f
-                setStroke(2, Color.parseColor("#D4AF37")) 
+                cornerRadius = 12f; setStroke(2, Color.parseColor("#D4AF37")) 
             }
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
             ).apply { setMargins(0, 0, 0, 16) }
             setOnClickListener {
-                val clipManager = getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                clipManager.setPrimaryClip(android.content.ClipData.newPlainText("File Path", file.absolutePath))
+                val clip = getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                clip.setPrimaryClip(android.content.ClipData.newPlainText("File Path", file.absolutePath))
                 Toast.makeText(context, "📍 Путь скопирован! Открываю папку...", Toast.LENGTH_SHORT).show()
                 openFolderInExplorer(file)
             }
@@ -538,8 +511,8 @@ class MainActivity : Activity() {
     private fun openFolderInExplorer(file: File) {
         val folder = file.parentFile ?: return
         val baseStorage = Environment.getExternalStorageDirectory().absolutePath
-        val relativePath = folder.absolutePath.replace("$baseStorage/", "").replace(baseStorage, "")
-        val docId = if (relativePath.isEmpty() || relativePath == folder.absolutePath) "primary:" else "primary:$relativePath"
+        val relPath = folder.absolutePath.replace("$baseStorage/", "").replace(baseStorage, "")
+        val docId = if (relPath.isEmpty() || relPath == folder.absolutePath) "primary:" else "primary:$relPath"
         try {
             val uri = Uri.parse("content://com.android.externalstorage.documents/document/" + Uri.encode(docId))
             startActivity(Intent(Intent.ACTION_VIEW).apply { setDataAndType(uri, "vnd.android.document/directory"); addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK) })
